@@ -38,3 +38,6 @@ asyncio_default_fixture_loop_scope = "function"
 omit = [
     "*/tests/*",
 ]
+
+[tool.setuptools_scm]
+# presence enables setuptools-scm
