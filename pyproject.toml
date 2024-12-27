@@ -6,7 +6,9 @@ build-backend = "setuptools.build_meta"
 name = "thermoworks-cloud"
 version = "0.1.0"
 description = "Pull data for Thermoworks Cloud enabled thermometers"
+readme = "README.md"
 authors = [{name = "Austin Hill", email = "austin@nitsua.org"}]
+license = {file = "LICENSE.txt"}
 dependencies = [
     "aiohttp >= 3.11.7"
 ]
