@@ -41,3 +41,5 @@ omit = [
 
 [tool.setuptools_scm]
 # presence enables setuptools-scm
+# local versions are not supported by pypi and will fail to upload
+local_scheme = "no-local-version"
