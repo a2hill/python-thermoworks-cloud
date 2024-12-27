@@ -8,6 +8,7 @@ on:
 
 jobs:
   test:
+    name: Run Tests
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
@@ -94,7 +95,7 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
 
   publish-to-testpypi:
-    name: Publish distribution to TestPyPI
+    name: Publish to TestPyPI
     needs:
     - package
     runs-on: ubuntu-latest

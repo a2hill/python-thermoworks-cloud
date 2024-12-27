@@ -1,10 +1,11 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=64", "setuptools-scm>=8", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "thermoworks-cloud"
-version = "0.1.0"
+# Use setuptools-scm to do dynamic versioning
+dynamic = ["version"]
 description = "Pull data for Thermoworks Cloud enabled thermometers"
 readme = "README.md"
 authors = [{name = "Austin Hill", email = "austin@nitsua.org"}]
