@@ -1,0 +1,16 @@
+# Hide some OS X stuff
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+
+# Github Actions
+.secrets
+
+# pytest
+**/__pycache__
+.pytest_cache/
+
+# pypi
+*.egg*
+build/
