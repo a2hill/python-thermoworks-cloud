@@ -16,10 +16,16 @@
 	// "forwardPorts": [],
 
 	// Install the dependencies after the container is initialized
-	"postCreateCommand": "python3 -m pip install .[test]"
+	"postCreateCommand": "python3 -m pip install .[test]",
 
 	// Configure tool-specific properties.
-	// "customizations": {},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-python.pylint"
+			]
+		}
+	}
 
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
 	// "remoteUser": "root"
