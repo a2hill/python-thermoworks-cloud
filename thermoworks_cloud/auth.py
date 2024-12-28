@@ -9,19 +9,25 @@ from aiohttp import ClientResponse, ClientResponseError, ClientSession
 
 from .models.user_credentials import UserCredentials, UserLoginResponse
 
+
 class Auth(Protocol):
     """
     Interface for making authenticated requests.
     """
+
     @property
     def user_id(self) -> str:
-        ...
-        
-    async def async_get_access_token(self) -> str:
-        ...
+        """Returns the user id of the logged in user"""
+        ...  # pylint: disable=unnecessary-ellipsis
 
-    async def request(self, method, url, **kwargs) -> ClientResponse:
-        ...
+    async def async_get_access_token(self) -> str:
+        """Return a valid access token."""
+        ...  # pylint: disable=unnecessary-ellipsis
+
+    async def request(self, method, url) -> ClientResponse:
+        """Make an authenticated request."""
+        ...  # pylint: disable=unnecessary-ellipsis
+
 
 class _AuthBase(ABC, Auth):
     """Abstract class to make authenticated requests."""
@@ -33,16 +39,12 @@ class _AuthBase(ABC, Auth):
         self.api_key = api_key
 
     @abstractmethod
-    async def async_get_access_token(self) -> str:
-        """Return a valid access token."""
+    async def async_get_access_token(self) -> str: ...
 
     async def request(self, method, url) -> ClientResponse:
-        """Make a request."""
 
         access_token = await self.async_get_access_token()
-        headers = {
-            "authorization": f"Bearer {access_token}"
-        }
+        headers = {"authorization": f"Bearer {access_token}"}
         url = f"{self.host}/{url}?key={self.api_key}"
 
         return await self.websession.request(
@@ -72,7 +74,10 @@ def is_expired(expiration_time, buffer_seconds=60):
 
 
 class WebConfigResponse(TypedDict):
-    """Similar to <https://firebase.google.com/docs/reference/firebase-management/rest/v1beta1/projects>."""
+    """
+    Similar to
+    <https://firebase.google.com/docs/reference/firebase-management/rest/v1beta1/projects>.
+    """
 
     projectId: str
     appId: str
@@ -101,12 +106,17 @@ class ErrorResponse(TypedDict):
 
 
 class AuthenticationErrorReason(Enum):
-    """From <https://firebase.google.com/docs/reference/rest/auth?authuser=0#section-sign-in-email-password>."""
+    """
+    From
+    <https://firebase.google.com/docs/reference/rest/auth?authuser=0#section-sign-in-email-password>.
+    """
 
     INVALID_EMAIL = "INVALID_EMAIL"
     EMAIL_NOT_FOUND = "EMAIL_NOT_FOUND"
     INVALID_PASSWORD = "INVALID_PASSWORD"
     USER_DISABLED = "USER_DISABLED"
+    UNKNOWN = "UNKNOWN"
+    """Catch-all for any undocumented error reasons"""
 
 
 class AuthenticationError(Exception):
@@ -133,7 +143,6 @@ class _TokenManager:
     _TOKEN_HOST = "https://securetoken.googleapis.com"
 
     _user_credentials: UserCredentials
-
 
     def __init__(self, websession: ClientSession, api_key: str) -> None:
         """Initialize token manager."""
@@ -169,12 +178,15 @@ class _TokenManager:
                 error_message = error_response["message"]
                 error_details = error_response["errors"]
 
-                if error_message in AuthenticationErrorReason._value2member_map_:
-                    raise AuthenticationError(
-                        message=f"Authentication failed: {error_message}",
-                        reason=AuthenticationErrorReason(error_message),
-                        details=error_details,
-                    )
+                try:
+                    error_reason = AuthenticationErrorReason(error_message)
+                except ValueError:
+                    error_reason = AuthenticationErrorReason.UNKNOWN
+                raise AuthenticationError(
+                    message=f"Authentication failed: {error_message}",
+                    reason=error_reason,
+                    details=error_details,
+                )
         else:
             try:
                 response.raise_for_status()
@@ -252,15 +264,13 @@ class AuthFactory:
     _FIREBASE_HOST = "https://firebase.googleapis.com"
     _FIRESTORE_HOST = "https://firestore.googleapis.com"
 
-    _config: WebConfigResponse
-
     def __init__(self, websession: ClientSession) -> None:
         """Initialize the factory."""
 
         assert websession is not None, "parameter cannot be None"
         self._websession = websession
 
-    async def get_config(self) -> None:
+    async def get_config(self) -> WebConfigResponse:
         """Get the Firestore project information for this application."""
 
         url = f"{self._FIREBASE_HOST}/v1alpha/projects/-/apps/{self._APP_ID}/webConfig"
@@ -272,20 +282,22 @@ class AuthFactory:
         try:
             response = await self._websession.request("get", url, headers=headers)
             response.raise_for_status()
-            self._config: WebConfigResponse = await response.json()
+            return await response.json()
         except Exception as e:
             raise RuntimeError("Unable to fetch application configuration") from e
 
     async def build_auth(self, email: str, password: str) -> Auth:
         """Build an Auth instance."""
 
-        await self.get_config()
+        web_config = await self.get_config()
+        project_id = web_config["projectId"]
+        url_root = f"{self._FIRESTORE_HOST}/v1/projects/{project_id}/databases/(default)/documents"
 
         token_manager = _TokenManager(self._websession, self._API_KEY)
         await token_manager.login(email, password)
         return _Auth(
             self._websession,
-            api_url_root=f"{self._FIRESTORE_HOST}/v1/projects/{self._config['projectId']}/databases/(default)/documents",
+            api_url_root=url_root,
             api_key=self._API_KEY,
             token_manager=token_manager,
         )

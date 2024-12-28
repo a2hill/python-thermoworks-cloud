@@ -1,3 +1,7 @@
+"""
+Classes related to a Device.
+"""
+
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -6,12 +10,16 @@ from thermoworks_cloud.utils import parse_datetime
 
 @dataclass
 class BigQueryInfo:
+    """BigQueryInfo contains information about the BigQuery table for a device."""
+
     table_id: str
     dataset_id: str
 
 
 @dataclass
-class Device:
+class Device:  # pylint: disable=too-many-instance-attributes
+    """Device contains information about a Thermoworks device."""
+
     device_id: str
     serial: str
     label: str

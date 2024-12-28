@@ -1,3 +1,7 @@
+"""
+Classes related to a DeviceChannel.
+"""
+
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -26,13 +30,18 @@ class Alarm:
 
 @dataclass
 class MinMaxReading:
+    """A minimum or maximum reading on a device channel."""
+
     reading: Reading
     date_reading: datetime
 
 
 @dataclass
-class DeviceChannel:
+class DeviceChannel:  # pylint: disable=too-many-instance-attributes
+    """A device channel on a device."""
+
     last_telemetry_saved: datetime
+    """"The last time a telemetry packet was received from the device channel."""
     value: float
     """"The temperature units as a string like "F" """
     units: str
@@ -90,18 +99,26 @@ def document_to_device_channel(document: dict) -> DeviceChannel:
         type=fields["type"]["stringValue"],
         label=fields["label"]["stringValue"],
         last_seen=parse_datetime(fields["lastSeen"]["timestampValue"]),
-        alarm_high=parse_alarm(fields["alarmHigh"]["mapValue"])
-        if "alarmHigh" in fields
-        else None,
-        alarm_low=parse_alarm(fields["alarmLow"]["mapValue"])
-        if "alarmLow" in fields
-        else None,
+        alarm_high=(
+            parse_alarm(fields["alarmHigh"]["mapValue"])
+            if "alarmHigh" in fields
+            else None
+        ),
+        alarm_low=(
+            parse_alarm(fields["alarmLow"]["mapValue"])
+            if "alarmLow" in fields
+            else None
+        ),
         number=fields["number"]["stringValue"],
-        minimum=parse_min_max_reading(fields["minimum"]["mapValue"])
-        if "minimum" in fields
-        else None,
-        maximum=parse_min_max_reading(fields["maximum"]["mapValue"])
-        if "maximum" in fields
-        else None,
+        minimum=(
+            parse_min_max_reading(fields["minimum"]["mapValue"])
+            if "minimum" in fields
+            else None
+        ),
+        maximum=(
+            parse_min_max_reading(fields["maximum"]["mapValue"])
+            if "maximum" in fields
+            else None
+        ),
         show_avg_temp=fields["showAvgTemp"]["booleanValue"],
     )

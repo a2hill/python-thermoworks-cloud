@@ -1,3 +1,7 @@
+"""
+Utility functions used within the library.
+"""
+
 from datetime import datetime
 
 from aiohttp import ClientResponse

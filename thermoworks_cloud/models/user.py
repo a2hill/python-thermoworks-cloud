@@ -1,3 +1,7 @@
+"""
+Classes related to User data
+"""
+
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -5,7 +9,11 @@ from thermoworks_cloud.utils import parse_datetime
 
 
 @dataclass
-class EmailLastEvent:
+class EmailLastEvent:  # pylint: disable=too-many-instance-attributes
+    """
+    Contains information about the last email sent to a user.
+    """
+
     reason: str
     event: str
     email: str
@@ -20,12 +28,18 @@ class EmailLastEvent:
 
 @dataclass
 class DeviceOrderItem:
+    """Contains information about a device's order within the users account."""
+
     device_id: str
     order: int
 
 
 @dataclass
-class User:
+class User:  # pylint: disable=too-many-instance-attributes
+    """
+    Contains information about a User.
+    """
+
     uid: str
     account_id: str
     display_name: str
@@ -121,9 +135,11 @@ def document_to_user(document: dict) -> User:
             for k, v in fields["fcmTokens"]["mapValue"]["fields"].items()
         },
         device_order=parse_device_order(fields["deviceOrder"]["mapValue"]),
-        email_last_event=parse_email_last_event(fields["emailLastEvent"]["mapValue"])
-        if "emailLastEvent" in fields
-        else None,
+        email_last_event=(
+            parse_email_last_event(fields["emailLastEvent"]["mapValue"])
+            if "emailLastEvent" in fields
+            else None
+        ),
         export_version=fields["exportVersion"]["doubleValue"],
         last_seen_in_app=None,  # Null field
         last_login=parse_datetime(fields["lastLogin"]["timestampValue"]),

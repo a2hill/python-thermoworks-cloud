@@ -1,8 +1,14 @@
+"""
+Test data to be used with mocks
+"""
+
 import json
 
 # Paths used by the AuthFactory to setup an authentication object
 LOGIN_PATH = "/v1/accounts:signInWithPassword"
-WEB_CONFIG_PATH = "/v1alpha/projects/-/apps/1:78998049458:web:b41e9d405d8c7de95eefab/webConfig"
+WEB_CONFIG_PATH = (
+    "/v1alpha/projects/-/apps/1:78998049458:web:b41e9d405d8c7de95eefab/webConfig"
+)
 TOKEN_PATH = "/v1/token"
 
 # Web facing API key for Firebase and Firestore attached to the requests by the AuthFactory
@@ -15,13 +21,18 @@ TEST_ID_TOKEN = "test_id_token"
 TEST_REFRESHED_ID_TOKEN = "test-refreshed-id-token"
 TEST_REFRESH_TOKEN = "test_refresh_token"
 
+# Root path used for application specific requests
+FIREBASE_APPLICATION_BASE_PATH = (
+    f"/v1/projects/{TEST_PROJECT_ID}/databases/(default)/documents"
+)
+
 # Return values from actual responses
 LOGIN_RETURN_VALUE = {
     "idToken": TEST_ID_TOKEN,
     "email": TEST_EMAIL_ADDRESS,
     "refreshToken": TEST_REFRESH_TOKEN,
     "expiresIn": "3600",
-    "localId": TEST_USER_ID
+    "localId": TEST_USER_ID,
 }
 
 # Actual response value structure
@@ -33,7 +44,7 @@ CONFIG_RETURN_VALUE = {
     "locationId": "test-location-id",
     "authDomain": "test-auth-domain.com",
     "messagingSenderId": "test-message-sender-id",
-    "measurementId": "test-measurement-id"
+    "measurementId": "test-measurement-id",
 }
 
 # Actual response value structure
@@ -44,14 +55,15 @@ TOKEN_REFRESH_RETURN_VALUE = {
     "refresh_token": "test-refreshed-refresh-token",
     "id_token": TEST_REFRESHED_ID_TOKEN,
     "user_id": TEST_USER_ID,
-    "project_id": TEST_PROJECT_ID
+    "project_id": TEST_PROJECT_ID,
 }
 
 TEST_DEVICE_ID_0 = "12:34:56:78:90:AB"
 TEST_DEVICE_ID_1 = "CD:EF:12:34:56:78"
 
 # Actual response value structure
-USER_RESPONSE = json.loads('''
+USER_RESPONSE = json.loads(
+    """
 {
   "name": "projects/test-project-name/databases/(default)/documents/users/test-user-id",
   "fields": {
@@ -226,10 +238,19 @@ USER_RESPONSE = json.loads('''
   },
   "createTime": "2019-01-01T00:00:00.000Z",
   "updateTime": "2021-01-01T00:00:00.000Z"
-}''' % (TEST_USER_ID, TEST_DEVICE_ID_0, TEST_DEVICE_ID_1, TEST_EMAIL_ADDRESS, TEST_EMAIL_ADDRESS))
+}"""
+    % (
+        TEST_USER_ID,
+        TEST_DEVICE_ID_0,
+        TEST_DEVICE_ID_1,
+        TEST_EMAIL_ADDRESS,
+        TEST_EMAIL_ADDRESS,
+    )
+)
 
 # Actual response value structure
-GET_DEVICE_RESPONSE = json.loads('''
+GET_DEVICE_RESPONSE = json.loads(
+    """
 {
   "name": "projects/test-project-name/databases/(default)/documents/devices/%s",
   "fields": {
@@ -329,12 +350,15 @@ GET_DEVICE_RESPONSE = json.loads('''
   },
   "createTime": "2019-01-01T00:00:00.000Z",
   "updateTime": "2021-01-01T00:00:00.000Z"
-}''' % (TEST_DEVICE_ID_0, TEST_DEVICE_ID_0, TEST_DEVICE_ID_0, TEST_DEVICE_ID_0))
+}"""
+    % (TEST_DEVICE_ID_0, TEST_DEVICE_ID_0, TEST_DEVICE_ID_0, TEST_DEVICE_ID_0)
+)
 
 # Actual response value structure
-GET_DEVICE_CHANNEL_RESPONSE = json.loads('''
+GET_DEVICE_CHANNEL_RESPONSE = json.loads(
+    """
 {
-  "name": "projects/test-project-name/databases/(default)/documents/devices/test-device-id/channels/1",
+  "name": "projects/test-project-name/databases/(default)/documents/devices/test-device/channels/1",
   "fields": {
     "lastTelemetrySaved": {
       "timestampValue": "2021-01-01T00:00:00.000Z"
@@ -447,4 +471,5 @@ GET_DEVICE_CHANNEL_RESPONSE = json.loads('''
   },
   "createTime": "2019-01-01T00:00:00.000Z",
   "updateTime": "2021-01-01T00:00:00.000Z"
-}''')
+}"""
+)

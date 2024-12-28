@@ -6,7 +6,10 @@ from typing import TypedDict
 
 
 class UserLoginResponse(TypedDict):
-    """Response from <https://firebase.google.com/docs/reference/rest/auth#section-sign-in-email-password>."""
+    """
+    Response from
+    <https://firebase.google.com/docs/reference/rest/auth#section-sign-in-email-password>.
+    """
 
     kind: str
     localId: str
@@ -19,7 +22,10 @@ class UserLoginResponse(TypedDict):
 
 
 class RefreshTokenResponse(TypedDict):
-    """Response from <https://firebase.google.com/docs/reference/rest/auth#section-refresh-token>."""
+    """
+    Response from
+    <https://firebase.google.com/docs/reference/rest/auth#section-refresh-token>.
+    """
 
     access_token: str
     expires_in: str

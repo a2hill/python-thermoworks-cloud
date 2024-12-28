@@ -48,3 +48,7 @@ omit = [
 # presence enables setuptools-scm
 # local versions are not supported by pypi and will fail to upload
 local_scheme = "no-local-version"
+
+[tool.isort]
+# Make isort compatible with the Black formatter
+profile = "black"
