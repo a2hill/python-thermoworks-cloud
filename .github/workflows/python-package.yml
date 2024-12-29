@@ -5,8 +5,8 @@ on:
     branches: [ main ]
     tags:
       - v*
-  pull_request:
-    branches: [ main ]
+  # pull_request:
+  #   branches: [ main ]
 
 jobs:
   test:
@@ -45,8 +45,56 @@ jobs:
           python "$example"
         done
 
+  docs:
+    name: Update documentation
+    needs: test
+    # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+    # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+    concurrency:
+      group: "docs"
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pdoc
+
+      - name: Generate documentation
+        run: |
+          export PYTHONWARNINGS='error::UserWarning'
+          pdoc --output-dir ./docs ./thermoworks_cloud
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './docs/thermoworks_cloud'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
   package:
-    name: Build Distribution
+    name: Build distribution
     needs: test
     runs-on: ubuntu-latest
 
