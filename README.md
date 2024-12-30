@@ -24,3 +24,6 @@ pip install thermoworks-cloud
 
 ## Usage
 See [examples/](examples/)
+
+## Docs
+See [API Documentation](https://a2hill.github.io/python-thermoworks-cloud/index.html)
