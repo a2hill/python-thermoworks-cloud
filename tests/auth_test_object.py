@@ -1,6 +1,4 @@
-"""
-Provides capabilities for mocking authentication related API calls.
-"""
+"""Provides capabilities for mocking authentication related API calls."""
 
 from pytest_httpserver import HTTPServer, RequestHandler
 
@@ -14,24 +12,23 @@ from tests.test_data import (
 
 
 class AuthTestObject:
-    """
-    A test object that can be used to mock authentication related API calls.
-    """
+    """A test object that can be used to mock authentication related API calls."""
 
     def __init__(self, httpserver: HTTPServer) -> None:
+        """Create a new AuthTestObject
+
+        Args:
+            httpserver (HTTPServer): The httpserver that the test object will use to mock responses
+        """
         self.httpserver = httpserver
 
     def expect_config(self) -> RequestHandler:
-        """
-        Create a request handler for a `get web config` request.
-        """
+        """Create a request handler for a `get web config` request."""
         headers = {"x-goog-api-key": API_KEY, "accept": "application/json"}
         return self.httpserver.expect_request(WEB_CONFIG_PATH, headers=headers)
 
     def expect_login(self, email: str, password: str) -> RequestHandler:
-        """
-        Create a request handler for a `sign in with email` request.
-        """
+        """Create a request handler for a `sign in with email` request."""
         headers = {"Content-Type": "application/json"}
         query_string = {"key": API_KEY}
         return self.httpserver.expect_request(
@@ -46,9 +43,7 @@ class AuthTestObject:
         )
 
     def expect_token_refresh(self, refresh_token: str) -> RequestHandler:
-        """
-        Create a request handler for a `refresh token` request.
-        """
+        """Create a request handler for a `refresh token` request."""
         headers = {"Content-Type": "application/json"}
         query_string = {"key": API_KEY}
         return self.httpserver.expect_request(
@@ -62,10 +57,7 @@ class AuthTestObject:
         )
 
     def expect_request(self, path: str, headers: dict) -> RequestHandler:
-        """
-        Create a request handler for a generic request to this firestore project`firestore request`
-        request.
-        """
+        """Create a request handler for a generic request to this firestore project."""
         query_string = {"key": API_KEY}
         return self.httpserver.expect_request(
             f"{FIREBASE_APPLICATION_BASE_PATH}/{path}",

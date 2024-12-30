@@ -13,16 +13,20 @@
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 	// Install the dependencies after the container is initialized
-	"postCreateCommand": "python3 -m pip install .[test]",
+	"postCreateCommand": "python3 -m pip install .[dev]",
 	// Configure tool-specific properties.
 	"customizations": {
 		"vscode": {
 			"extensions": [
 				"ms-python.pylint",
-				"ms-python.black-formatter"
+				"ms-python.black-formatter",
+				"ms-python.vscode-pylance",
+				"amazonwebservices.amazon-q-vscode",
+				"ms-python.isort",
+				"tamasfe.even-better-toml"
 			]
 		}
-	}
-	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
-	// "remoteUser": "root"
+	},
+	// Allows for viewing of the generated pdoc html
+	"appPort": 8080
 }

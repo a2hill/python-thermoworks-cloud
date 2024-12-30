@@ -1,6 +1,4 @@
-"""
-Classes related to a Device.
-"""
+"""Classes related to a Device."""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -52,7 +50,7 @@ class Device:  # pylint: disable=too-many-instance-attributes
     update_time: datetime
 
 
-def parse_big_query_info(data: dict) -> BigQueryInfo:
+def _parse_big_query_info(data: dict) -> BigQueryInfo:
     """Parse bigQuery into a BigQueryInfo dataclass."""
     fields = data["fields"]
     return BigQueryInfo(
@@ -61,7 +59,7 @@ def parse_big_query_info(data: dict) -> BigQueryInfo:
     )
 
 
-def document_to_device(document: dict) -> Device:
+def _document_to_device(document: dict) -> Device:
     """Convert a Firestore Document object into a Device object."""
     fields = document["fields"]
 
@@ -79,7 +77,7 @@ def document_to_device(document: dict) -> Device:
         account_id=fields["accountId"]["stringValue"],
         status=fields["status"]["stringValue"],
         battery_state=fields["batteryState"]["stringValue"],
-        big_query_info=parse_big_query_info(fields["bigQuery"]["mapValue"]),
+        big_query_info=_parse_big_query_info(fields["bigQuery"]["mapValue"]),
         battery=int(fields["battery"]["integerValue"]),
         wifi_strength=int(fields["wifi_stength"]["integerValue"]),
         recording_interval_in_seconds=int(

@@ -1,6 +1,4 @@
-"""
-Configures pytest for all tests, providing various fixtures
-"""
+"""Configures pytest for all tests, providing various fixtures"""
 
 from unittest.mock import patch
 from aiohttp import ClientSession
@@ -16,9 +14,7 @@ from thermoworks_cloud.auth import _TokenManager, Auth, AuthFactory
 
 @pytest.fixture(autouse=True, name="httpserver_endpoint")
 def fixture_httpserver_endpoint(httpserver: HTTPServer) -> str:
-    """
-    Provides a fixture that returns the endpoint of the httpserver
-    """
+    """Provides a fixture that returns the endpoint of the httpserver."""
     return f"http://{httpserver.host}:{httpserver.port}"
 
 
@@ -42,17 +38,13 @@ def override_authfactory_hosts(httpserver_endpoint: str):
 
 @pytest.fixture(name="auth_test_object")
 def fixture_auth_test_object(httpserver: HTTPServer) -> AuthTestObject:
-    """
-    Provide an AuthTestObject which uses the mock http server.
-    """
+    """Provide an AuthTestObject which uses the mock http server."""
     return AuthTestObject(httpserver)
 
 
 @pytest.fixture(name="client_session")
 async def fixture_client_session():
-    """
-    Provide a ClientSession for use in tests.
-    """
+    """Provide a ClientSession for use in tests."""
     session = ClientSession()
     yield session
 
@@ -64,9 +56,7 @@ async def fixture_client_session():
 async def fixture_auth(
     client_session: ClientSession, auth_test_object: AuthTestObject
 ) -> Auth:
-    """
-    Provides an Auth object for use in component tests.
-    """
+    """Provides an Auth object for use in component tests."""
     # Setup mock responses
     auth_test_object.expect_config().respond_with_json(CONFIG_RETURN_VALUE)
     auth_test_object.expect_login(TEST_EMAIL_ADDRESS, TEST_PASSWORD).respond_with_json(
@@ -80,7 +70,5 @@ async def fixture_auth(
 
 @pytest.fixture()
 def core_test_object(httpserver: HTTPServer, auth: Auth) -> CoreTestObject:
-    """
-    Provide a CoreTestObject for use in component tests.
-    """
+    """Provide a CoreTestObject for use in component tests."""
     return CoreTestObject(httpserver, auth)

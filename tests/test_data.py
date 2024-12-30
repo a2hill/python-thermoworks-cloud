@@ -1,6 +1,4 @@
-"""
-Test data to be used with mocks
-"""
+"""Test data to be used with mocks"""
 
 import json
 

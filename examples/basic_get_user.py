@@ -1,6 +1,4 @@
-"""
-Demonstrates how to use this library to get information about the logged in user.
-"""
+"""Demonstrates how to use this library to get information about the logged in user."""
 
 import asyncio
 import os

@@ -7,21 +7,15 @@ from typing import Protocol, TypedDict, cast
 
 from aiohttp import ClientResponse, ClientResponseError, ClientSession
 
-from .models.user_credentials import UserCredentials, UserLoginResponse
+from .models.user_credentials import _UserCredentials, _UserLoginResponse
 
 
 class Auth(Protocol):
-    """
-    Interface for making authenticated requests.
-    """
+    """Interface to make authenticated HTTP requests to the ThermoWorks Cloud service."""
 
     @property
     def user_id(self) -> str:
-        """Returns the user id of the logged in user"""
-        ...  # pylint: disable=unnecessary-ellipsis
-
-    async def async_get_access_token(self) -> str:
-        """Return a valid access token."""
+        """The id of the logged in user"""
         ...  # pylint: disable=unnecessary-ellipsis
 
     async def request(self, method, url) -> ClientResponse:
@@ -39,11 +33,13 @@ class _AuthBase(ABC, Auth):
         self.api_key = api_key
 
     @abstractmethod
-    async def async_get_access_token(self) -> str: ...
+    async def _async_get_access_token(self) -> str:
+        """Return a valid access token."""
+        ...  # pylint: disable=unnecessary-ellipsis
 
     async def request(self, method, url) -> ClientResponse:
 
-        access_token = await self.async_get_access_token()
+        access_token = await self._async_get_access_token()
         headers = {"authorization": f"Bearer {access_token}"}
         url = f"{self.host}/{url}?key={self.api_key}"
 
@@ -54,7 +50,7 @@ class _AuthBase(ABC, Auth):
         )
 
 
-def is_expired(expiration_time, buffer_seconds=60):
+def _is_expired(expiration_time, buffer_seconds=60):
     """Determine if the key needs renewal based on a buffer time.
 
     Args:
@@ -73,9 +69,8 @@ def is_expired(expiration_time, buffer_seconds=60):
     return current_time >= experation_threshold
 
 
-class WebConfigResponse(TypedDict):
-    """
-    Similar to
+class _WebConfigResponse(TypedDict):
+    """See
     <https://firebase.google.com/docs/reference/firebase-management/rest/v1beta1/projects>.
     """
 
@@ -106,8 +101,7 @@ class ErrorResponse(TypedDict):
 
 
 class AuthenticationErrorReason(Enum):
-    """
-    From
+    """See
     <https://firebase.google.com/docs/reference/rest/auth?authuser=0#section-sign-in-email-password>.
     """
 
@@ -130,7 +124,8 @@ class AuthenticationError(Exception):
     ) -> None:
         """Initialize an authentication error."""
 
-        super().__init__(f"Error authenticating with Firestore: {reason.value}")
+        super().__init__(
+            f"Error authenticating with Firestore: {reason.value}")
         self.message = message
         self.reason = reason
         self.details = details
@@ -142,7 +137,7 @@ class _TokenManager:
     _IDENTITY_HOST = "https://identitytoolkit.googleapis.com"
     _TOKEN_HOST = "https://securetoken.googleapis.com"
 
-    _user_credentials: UserCredentials
+    _user_credentials: _UserCredentials
 
     def __init__(self, websession: ClientSession, api_key: str) -> None:
         """Initialize token manager."""
@@ -167,8 +162,8 @@ class _TokenManager:
 
         if response.ok:
             login_response = await response.json()
-            cast(UserLoginResponse, login_response)
-            self._user_credentials = UserCredentials.from_user_login_response(
+            cast(_UserLoginResponse, login_response)
+            self._user_credentials = _UserCredentials.from_user_login_response(
                 login_response
             )
         elif response.status == 400:
@@ -206,7 +201,7 @@ class _TokenManager:
     def is_token_valid(self) -> bool:
         """Return a bool indicating whether the token is expired."""
 
-        return not is_expired(self._user_credentials.expiration_time)
+        return not _is_expired(self._user_credentials.expiration_time)
 
     async def refresh_access_token(self) -> None:
         """Refresh the access token."""
@@ -223,7 +218,7 @@ class _TokenManager:
         )
         response.raise_for_status()
         refresh_token_response = await response.json()
-        self._user_credentials = UserCredentials.from_refresh_token_response(
+        self._user_credentials = _UserCredentials.from_refresh_token_response(
             refresh_token_response
         )
 
@@ -247,7 +242,7 @@ class _Auth(_AuthBase):
         """The id of the user that is authenticated."""
         return self.token_manager.user_id
 
-    async def async_get_access_token(self) -> str:
+    async def _async_get_access_token(self) -> str:
         """Return a valid access token."""
         if self.token_manager.is_token_valid():
             return self.token_manager.access_token
@@ -256,8 +251,8 @@ class _Auth(_AuthBase):
         return self.token_manager.access_token
 
 
-class AuthFactory:
-    """Create Auth objects."""
+class AuthFactory:  # pylint: disable=too-few-public-methods
+    """Builds `thermoworks_cloud.Auth` objects."""
 
     _API_KEY = "AIzaSyCf079iccUFc1k7VHdGXng22zXDy8Y3KEY"
     _APP_ID = "1:78998049458:web:b41e9d405d8c7de95eefab"
@@ -265,15 +260,22 @@ class AuthFactory:
     _FIRESTORE_HOST = "https://firestore.googleapis.com"
 
     def __init__(self, websession: ClientSession) -> None:
-        """Initialize the factory."""
+        """Initialize the auth factory.
 
-        assert websession is not None, "parameter cannot be None"
+        Args:
+            websession (ClientSession): The HTTP client to be used when authenticating the user.
+        """
+
+        if websession is None:
+            raise ValueError("parameter cannot be None")
+
         self._websession = websession
 
-    async def get_config(self) -> WebConfigResponse:
+    async def _get_config(self) -> _WebConfigResponse:
         """Get the Firestore project information for this application."""
 
-        url = f"{self._FIREBASE_HOST}/v1alpha/projects/-/apps/{self._APP_ID}/webConfig"
+        url = f"{
+            self._FIREBASE_HOST}/v1alpha/projects/-/apps/{self._APP_ID}/webConfig"
         headers = {
             "accept": "application/json",
             "x-goog-api-key": self._API_KEY,
@@ -284,14 +286,24 @@ class AuthFactory:
             response.raise_for_status()
             return await response.json()
         except Exception as e:
-            raise RuntimeError("Unable to fetch application configuration") from e
+            raise RuntimeError(
+                "Unable to fetch application configuration") from e
 
     async def build_auth(self, email: str, password: str) -> Auth:
-        """Build an Auth instance."""
+        """Build an Auth instance.
 
-        web_config = await self.get_config()
+        Args:
+            email (str): The email address of a ThermoWorks Cloud user.
+            password (str): The password for the user.
+
+        Returns:
+            Auth: An Auth object for making requests on behalf of the authenticated user.
+        """
+
+        web_config = await self._get_config()
         project_id = web_config["projectId"]
-        url_root = f"{self._FIRESTORE_HOST}/v1/projects/{project_id}/databases/(default)/documents"
+        url_root = f"{
+            self._FIRESTORE_HOST}/v1/projects/{project_id}/databases/(default)/documents"
 
         token_manager = _TokenManager(self._websession, self._API_KEY)
         await token_manager.login(email, password)

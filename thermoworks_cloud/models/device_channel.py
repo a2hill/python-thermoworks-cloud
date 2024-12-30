@@ -1,6 +1,4 @@
-"""
-Classes related to a DeviceChannel.
-"""
+"""Classes related to a DeviceChannel."""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -60,7 +58,7 @@ class DeviceChannel:  # pylint: disable=too-many-instance-attributes
     show_avg_temp: bool
 
 
-def parse_alarm(alarm_data: dict) -> Alarm:
+def _parse_alarm(alarm_data: dict) -> Alarm:
     """Parse alarm data into an Alarm object."""
     return Alarm(
         enabled=alarm_data["fields"]["enabled"]["booleanValue"],
@@ -70,7 +68,7 @@ def parse_alarm(alarm_data: dict) -> Alarm:
     )
 
 
-def parse_min_max_reading(data: dict) -> MinMaxReading:
+def _parse_min_max_reading(data: dict) -> MinMaxReading:
     """Parse minimum or maximum reading data."""
     return MinMaxReading(
         reading=Reading(
@@ -81,11 +79,12 @@ def parse_min_max_reading(data: dict) -> MinMaxReading:
                 "stringValue"
             ],
         ),
-        date_reading=parse_datetime(data["fields"]["dateReading"]["timestampValue"]),
+        date_reading=parse_datetime(
+            data["fields"]["dateReading"]["timestampValue"]),
     )
 
 
-def document_to_device_channel(document: dict) -> DeviceChannel:
+def _document_to_device_channel(document: dict) -> DeviceChannel:
     """Convert a Firestore Document object into a Device object."""
     fields = document["fields"]
 
@@ -100,23 +99,23 @@ def document_to_device_channel(document: dict) -> DeviceChannel:
         label=fields["label"]["stringValue"],
         last_seen=parse_datetime(fields["lastSeen"]["timestampValue"]),
         alarm_high=(
-            parse_alarm(fields["alarmHigh"]["mapValue"])
+            _parse_alarm(fields["alarmHigh"]["mapValue"])
             if "alarmHigh" in fields
             else None
         ),
         alarm_low=(
-            parse_alarm(fields["alarmLow"]["mapValue"])
+            _parse_alarm(fields["alarmLow"]["mapValue"])
             if "alarmLow" in fields
             else None
         ),
         number=fields["number"]["stringValue"],
         minimum=(
-            parse_min_max_reading(fields["minimum"]["mapValue"])
+            _parse_min_max_reading(fields["minimum"]["mapValue"])
             if "minimum" in fields
             else None
         ),
         maximum=(
-            parse_min_max_reading(fields["maximum"]["mapValue"])
+            _parse_min_max_reading(fields["maximum"]["mapValue"])
             if "maximum" in fields
             else None
         ),

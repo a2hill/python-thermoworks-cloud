@@ -1,6 +1,4 @@
-"""
-Classes related to User data
-"""
+"""Classes related to User data"""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -10,9 +8,7 @@ from thermoworks_cloud.utils import parse_datetime
 
 @dataclass
 class EmailLastEvent:  # pylint: disable=too-many-instance-attributes
-    """
-    Contains information about the last email sent to a user.
-    """
+    """Contains information about the last email sent to a user."""
 
     reason: str
     event: str
@@ -36,9 +32,7 @@ class DeviceOrderItem:
 
 @dataclass
 class User:  # pylint: disable=too-many-instance-attributes
-    """
-    Contains information about a User.
-    """
+    """Contains information about a User."""
 
     uid: str
     account_id: str
@@ -90,7 +84,8 @@ def parse_device_order(data: dict) -> dict[str, list[DeviceOrderItem]]:
         orders[account_id] = [
             DeviceOrderItem(
                 device_id=device["mapValue"]["fields"]["deviceId"]["stringValue"],
-                order=int(device["mapValue"]["fields"]["order"]["integerValue"]),
+                order=int(device["mapValue"]["fields"]
+                          ["order"]["integerValue"]),
             )
             for device in devices["arrayValue"]["values"]
         ]

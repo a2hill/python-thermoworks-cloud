@@ -5,9 +5,8 @@ from datetime import datetime, timedelta
 from typing import TypedDict
 
 
-class UserLoginResponse(TypedDict):
-    """
-    Response from
+class _UserLoginResponse(TypedDict):
+    """See:
     <https://firebase.google.com/docs/reference/rest/auth#section-sign-in-email-password>.
     """
 
@@ -21,9 +20,8 @@ class UserLoginResponse(TypedDict):
     expiresIn: str
 
 
-class RefreshTokenResponse(TypedDict):
-    """
-    Response from
+class _RefreshTokenResponse(TypedDict):
+    """See:
     <https://firebase.google.com/docs/reference/rest/auth#section-refresh-token>.
     """
 
@@ -36,7 +34,7 @@ class RefreshTokenResponse(TypedDict):
     project_id: str
 
 
-def get_expiration_time(seconds_until_expiration: int):
+def _get_expiration_time(seconds_until_expiration: int):
     """Calculate the exact expiration time of a key.
 
     Args:
@@ -54,7 +52,7 @@ def get_expiration_time(seconds_until_expiration: int):
 
 
 @dataclass
-class UserCredentials:
+class _UserCredentials:
     """Internal representation of credentials for a user."""
 
     user_id: str
@@ -63,23 +61,23 @@ class UserCredentials:
     expiration_time: datetime
 
     @staticmethod
-    def from_user_login_response(response: UserLoginResponse) -> "UserCredentials":
+    def from_user_login_response(response: _UserLoginResponse) -> "_UserCredentials":
         """Create UserCredentials from the login API response."""
-        return UserCredentials(
+        return _UserCredentials(
             user_id=response["localId"],
             access_token=response["idToken"],
             refresh_token=response["refreshToken"],
-            expiration_time=get_expiration_time(int(response["expiresIn"])),
+            expiration_time=_get_expiration_time(int(response["expiresIn"])),
         )
 
     @staticmethod
     def from_refresh_token_response(
-        response: RefreshTokenResponse,
-    ) -> "UserCredentials":
+        response: _RefreshTokenResponse,
+    ) -> "_UserCredentials":
         """Create UserCredentials from the refresh token API response."""
-        return UserCredentials(
+        return _UserCredentials(
             user_id=response["user_id"],
             access_token=response["access_token"],
             refresh_token=response["refresh_token"],
-            expiration_time=get_expiration_time(int(response["expires_in"])),
+            expiration_time=_get_expiration_time(int(response["expires_in"])),
         )

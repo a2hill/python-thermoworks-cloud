@@ -8,11 +8,9 @@ name = "thermoworks-cloud"
 dynamic = ["version"]
 description = "Pull data for Thermoworks Cloud enabled thermometers"
 readme = "README.md"
-authors = [{name = "Austin Hill", email = "austin@nitsua.org"}]
-license = {file = "LICENSE.txt"}
-dependencies = [
-    "aiohttp >= 3.11.7"
-]
+authors = [{ name = "Austin Hill", email = "austin@nitsua.org" }]
+license = { file = "LICENSE.txt" }
+dependencies = ["aiohttp >= 3.11.7"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -26,13 +24,16 @@ keywords = ["thermometer", "ThermoWorks", "ThermoWorks Cloud", "NODE"]
 GitHub = "https://github.com/a2hill/python-thermoworks-cloud"
 
 [project.optional-dependencies]
-# pip install -e ".[test]"
-test = [
+# pip install ".[dev]"
+dev = [
+    "black>=24.8.0",
     "pytest>=8.3.4",
     "pytest-asyncio>=0.25.0",
     "aioresponses>=0.7.7",
     "pytest_httpserver>=1.1.0",
-    "pytest-cov>=6.0.0"
+    "pytest-cov>=6.0.0",
+    "pylint>=3.3.0",
+    "pdoc>=15.0.1",
 ]
 
 [tool.pytest.ini_options]
@@ -40,9 +41,7 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 
 [tool.coverage.run]
-omit = [
-    "*/tests/*",
-]
+omit = ["*/tests/*"]
 
 [tool.setuptools_scm]
 # presence enables setuptools-scm
@@ -52,3 +51,13 @@ local_scheme = "no-local-version"
 [tool.isort]
 # Make isort compatible with the Black formatter
 profile = "black"
+
+[tool.black]
+line-length = 100
+
+[tool.pylint]
+# https://pylint.pycqa.org/en/latest/user_guide/checkers/extensions.html#pylint-extensions-docparams
+load-plugins = ["pylint.extensions.docparams", "pylint.extensions.docstyle"]
+default-docstring-type = "google"
+# Enables checking of constructors but skips private methods
+no-docstring-rgx = "^(?!__init__$)_"

@@ -1,6 +1,4 @@
-"""
-Utility functions used within the library.
-"""
+"""Utility functions used within the library."""
 
 from datetime import datetime
 

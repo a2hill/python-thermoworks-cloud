@@ -3,20 +3,25 @@
 import logging
 
 from thermoworks_cloud.utils import format_client_response
-from .auth import Auth
-from .models.device import Device, document_to_device
-from .models.device_channel import DeviceChannel, document_to_device_channel
-from .models.user import User, document_to_user
 
+from .auth import Auth
+from .models.device import Device, _document_to_device
+from .models.device_channel import DeviceChannel, _document_to_device_channel
+from .models.user import User, document_to_user
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class ThermoworksCloud:
-    """Accessor for the Thermoworks Cloud API."""
+    """Client for the Thermoworks Cloud service."""
 
     def __init__(self, auth: Auth) -> None:
-        """Initialize the API."""
+        """Create a new client. `thermoworks_cloud.Auth` objects are created using a 
+        `thermoworks_cloud.AuthFactory`.
+
+        Args:
+            auth (Auth): Authorization object used to make authorized requests to the service.
+        """
         self._auth = auth
 
     async def get_user(self) -> User:
@@ -48,7 +53,7 @@ class ThermoworksCloud:
             response = await self._auth.request("get", f"devices/{device_serial}")
             if response.ok:
                 device_document = await response.json()
-                return document_to_device(device_document)
+                return _document_to_device(device_document)
 
             try:
                 error_response = await format_client_response(response)
@@ -74,7 +79,7 @@ class ThermoworksCloud:
             )
             if response.ok:
                 device_channel_document = await response.json()
-                return document_to_device_channel(device_channel_document)
+                return _document_to_device_channel(device_channel_document)
 
             try:
                 error_response = await format_client_response(response)
