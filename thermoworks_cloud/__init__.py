@@ -6,13 +6,25 @@ service, allowing users to access their ThermoWorks Cloud devices and data.
 This is the main public module of the thermoworks_cloud package.
 """
 
-from .auth import Auth, AuthFactory, AuthenticationError, AuthenticationErrorReason
-from .core import ThermoworksCloud
+import logging
+
 from . import models
+from .auth import Auth, AuthenticationError, AuthenticationErrorReason, AuthFactory
+from .core import ThermoworksCloud
 
 # The publicly accessible classes for this module
-__all__ = ["ThermoworksCloud", "Auth", "AuthFactory",
-           "AuthenticationError", "AuthenticationErrorReason", "models"]
+__all__ = [
+    "ThermoworksCloud",
+    "Auth",
+    "AuthFactory",
+    "AuthenticationError",
+    "AuthenticationErrorReason",
+    "models",
+]
 
 # Tells pdoc how to parse the doc strings in this module
 __docformat__ = "google"
+
+# Allows for consuming applications to look at log messages if they'd like
+_LOGGER = logging.getLogger(__name__)
+_LOGGER.addHandler(logging.NullHandler())

@@ -16,7 +16,7 @@ class ThermoworksCloud:
     """Client for the Thermoworks Cloud service."""
 
     def __init__(self, auth: Auth) -> None:
-        """Create a new client. `thermoworks_cloud.Auth` objects are created using a 
+        """Create a new client. `thermoworks_cloud.Auth` objects are created using a
         `thermoworks_cloud.AuthFactory`.
 
         Args:
@@ -37,7 +37,7 @@ class ThermoworksCloud:
                 error_response = await format_client_response(response)
             except RuntimeError:
                 error_response = "Could not read response body."
-            _LOGGER.error(
+            _LOGGER.debug(
                 "Received error response while getting user: %s", error_response
             )
 
@@ -59,7 +59,7 @@ class ThermoworksCloud:
                 error_response = await format_client_response(response)
             except RuntimeError:
                 error_response = "Could not read response body."
-            _LOGGER.error(
+            _LOGGER.debug(
                 "Received error response while getting device: %s", error_response
             )
 
@@ -85,7 +85,7 @@ class ThermoworksCloud:
                 error_response = await format_client_response(response)
             except RuntimeError:
                 error_response = "Could not read response body."
-            _LOGGER.error(
+            _LOGGER.debug(
                 "Received error response while getting device channel: %s",
                 error_response,
             )
