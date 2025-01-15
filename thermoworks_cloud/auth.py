@@ -149,7 +149,10 @@ class _TokenManager:
 
         url = f"{self._IDENTITY_HOST}/v1/accounts:signInWithPassword"
         query = {"key": self._api_key}
-        headers = {"Content-Type": "application/json"}
+        headers = {
+            "Content-Type": "application/json",
+            "referer": "https://cloud.thermoworks.com/"
+        }
         json = {
             "email": email,
             "password": password,
@@ -207,7 +210,10 @@ class _TokenManager:
         """Refresh the access token."""
 
         url = f"{self._TOKEN_HOST}/v1/token?key={self._api_key}"
-        headers = {"Content-Type": "application/json"}
+        headers = {
+            "Content-Type": "application/json",
+            "referer": "https://cloud.thermoworks.com/"
+        }
         json = {
             "grant_type": "refresh_token",
             "refresh_token": self._user_credentials.refresh_token,
@@ -279,6 +285,7 @@ class AuthFactory:  # pylint: disable=too-few-public-methods
         headers = {
             "accept": "application/json",
             "x-goog-api-key": self._API_KEY,
+            "referer": "https://cloud.thermoworks.com/"
         }
 
         try:

@@ -25,5 +25,9 @@ pip install thermoworks-cloud
 ## Usage
 See [examples/](examples/)
 
+```bash
+env $(cat .secrets) python3 examples/get_devices_for_user.py 
+```
+
 ## Docs
 See [API Documentation](https://a2hill.github.io/python-thermoworks-cloud/index.html)
