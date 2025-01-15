@@ -23,7 +23,8 @@
 				"ms-python.vscode-pylance",
 				"amazonwebservices.amazon-q-vscode",
 				"ms-python.isort",
-				"tamasfe.even-better-toml"
+				"tamasfe.even-better-toml",
+				"redhat.vscode-yaml"
 			]
 		}
 	},
