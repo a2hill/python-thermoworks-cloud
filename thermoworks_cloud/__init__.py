@@ -10,7 +10,7 @@ import logging
 
 from . import models
 from .auth import Auth, AuthenticationError, AuthenticationErrorReason, AuthFactory
-from .core import ThermoworksCloud
+from .core import ThermoworksCloud, ResourceNotFoundError
 
 # The publicly accessible classes for this module
 __all__ = [
@@ -19,6 +19,7 @@ __all__ = [
     "AuthFactory",
     "AuthenticationError",
     "AuthenticationErrorReason",
+    "ResourceNotFoundError",
     "models",
 ]
 

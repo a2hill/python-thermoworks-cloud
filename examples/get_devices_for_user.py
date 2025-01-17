@@ -5,6 +5,7 @@ import os
 from aiohttp import ClientSession
 
 from thermoworks_cloud import AuthFactory, ThermoworksCloud
+from thermoworks_cloud.core import ResourceNotFoundError
 from thermoworks_cloud.models.device import Device
 from thermoworks_cloud.models.device_channel import DeviceChannel
 
@@ -44,14 +45,14 @@ async def __main__():
                             device_serial=device_serial, channel=str(channel)
                         )
                     )
-                except RuntimeError:
+                except ResourceNotFoundError:
                     # Go until there are no more
                     break
 
             device_channels_by_device[device_serial] = device_channels
 
         assert len(devices) > 0
-        assert len(device_channels_by_device) > 0
+        assert len(device_channels_by_device[devices[0].serial]) > 0
 
         print({
             "devices": devices,
