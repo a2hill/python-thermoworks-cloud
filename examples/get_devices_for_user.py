@@ -4,8 +4,7 @@ import asyncio
 import os
 from aiohttp import ClientSession
 
-from thermoworks_cloud import AuthFactory, ThermoworksCloud
-from thermoworks_cloud.core import ResourceNotFoundError
+from thermoworks_cloud import AuthFactory, ThermoworksCloud, ResourceNotFoundError
 from thermoworks_cloud.models.device import Device
 from thermoworks_cloud.models.device_channel import DeviceChannel
 

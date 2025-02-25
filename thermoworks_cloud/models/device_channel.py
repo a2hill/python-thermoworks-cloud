@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from thermoworks_cloud.utils import parse_datetime
+from thermoworks_cloud.utils import parse_datetime, unwrap_firestore_value
 
 
 @dataclass
@@ -72,12 +72,10 @@ def _parse_min_max_reading(data: dict) -> MinMaxReading:
     """Parse minimum or maximum reading data."""
     return MinMaxReading(
         reading=Reading(
-            value=data["fields"]["reading"]["mapValue"]["fields"]["value"][
-                "doubleValue"
-            ],
-            units=data["fields"]["reading"]["mapValue"]["fields"]["units"][
-                "stringValue"
-            ],
+            value=unwrap_firestore_value(
+                data["fields"]["reading"]["mapValue"]["fields"]["value"]),
+            units=unwrap_firestore_value(
+                data["fields"]["reading"]["mapValue"]["fields"]["units"]),
         ),
         date_reading=parse_datetime(
             data["fields"]["dateReading"]["timestampValue"]),
