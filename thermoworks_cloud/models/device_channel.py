@@ -90,7 +90,7 @@ def _document_to_device_channel(document: dict) -> DeviceChannel:
         last_telemetry_saved=parse_datetime(
             fields["lastTelemetrySaved"]["timestampValue"]
         ),
-        value=fields["value"]["doubleValue"],
+        value=unwrap_firestore_value(fields["value"]),
         units=fields["units"]["stringValue"],
         status=fields["status"]["stringValue"],
         type=fields["type"]["stringValue"],

@@ -41,7 +41,6 @@ class User:  # pylint: disable=too-many-instance-attributes
     provider: str
     time_zone: str
     app_version: str
-    email_status: str
     preferred_units: str
     locale: str
     photo_url: str
@@ -104,7 +103,6 @@ def document_to_user(document: dict) -> User:
         provider=fields["provider"]["stringValue"],
         time_zone=fields["timeZone"]["stringValue"],
         app_version=fields["appVersion"]["stringValue"],
-        email_status=fields["emailStatus"]["stringValue"],
         preferred_units=fields["preferredUnits"]["stringValue"],
         locale=fields["locale"]["stringValue"],
         photo_url=fields["photoURL"]["stringValue"],
