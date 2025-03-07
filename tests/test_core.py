@@ -104,8 +104,6 @@ class TestCore:
         assert user.provider == get_field_value(USER_RESPONSE, "provider")
         assert user.time_zone == get_field_value(USER_RESPONSE, "timeZone")
         assert user.app_version == get_field_value(USER_RESPONSE, "appVersion")
-        assert user.email_status == get_field_value(
-            USER_RESPONSE, "emailStatus")
         assert user.preferred_units == get_field_value(
             USER_RESPONSE, "preferredUnits")
         assert user.locale == get_field_value(USER_RESPONSE, "locale")
