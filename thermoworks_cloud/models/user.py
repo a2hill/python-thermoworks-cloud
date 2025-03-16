@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Optional
 
 from thermoworks_cloud.utils import parse_datetime
 
@@ -47,7 +48,7 @@ class User:  # pylint: disable=too-many-instance-attributes
     use_24_time: bool
     roles: dict[str, bool]
     account_roles: dict[str, bool]
-    system: dict[str, bool]
+    system: Optional[dict[str, bool]]
     notification_settings: dict[str, bool]
     fcm_tokens: dict[str, bool]
     device_order: dict[str, list[DeviceOrderItem]]
@@ -118,7 +119,7 @@ def document_to_user(document: dict) -> User:
         system={
             k: v["booleanValue"]
             for k, v in fields["system"]["mapValue"]["fields"].items()
-        },
+        } if "system" in fields else None,
         notification_settings={
             k: v["booleanValue"]
             for k, v in fields["notificationSettings"]["mapValue"]["fields"].items()
