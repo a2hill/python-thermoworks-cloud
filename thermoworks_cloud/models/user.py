@@ -134,9 +134,11 @@ def document_to_user(document: dict) -> User:
             if "emailLastEvent" in fields
             else None
         ),
-        export_version=fields["exportVersion"]["doubleValue"] if "exportVersion" in fields else None,
+        export_version=fields["exportVersion"]["doubleValue"]
+        if "exportVersion" in fields else None,
         last_seen_in_app=None,  # Null field
-        last_login=parse_datetime(fields["lastLogin"]["timestampValue"]) if "lastLogin" in fields else None,
+        last_login=parse_datetime(
+            fields["lastLogin"]["timestampValue"]) if "lastLogin" in fields else None,
         create_time=parse_datetime(document["createTime"]),
         update_time=parse_datetime(document["updateTime"]),
     )
