@@ -49,13 +49,13 @@ class User:  # pylint: disable=too-many-instance-attributes
     roles: dict[str, bool]
     account_roles: dict[str, bool]
     system: Optional[dict[str, bool]]
-    notification_settings: dict[str, bool]
-    fcm_tokens: dict[str, bool]
+    notification_settings: Optional[dict[str, bool]]
+    fcm_tokens: Optional[dict[str, bool]]
     device_order: dict[str, list[DeviceOrderItem]]
     email_last_event: EmailLastEvent | None
-    export_version: float
+    export_version: Optional[float]
     last_seen_in_app: None
-    last_login: datetime
+    last_login: Optional[datetime]
     create_time: datetime
     update_time: datetime
 
@@ -123,20 +123,20 @@ def document_to_user(document: dict) -> User:
         notification_settings={
             k: v["booleanValue"]
             for k, v in fields["notificationSettings"]["mapValue"]["fields"].items()
-        },
+        } if "notificationSettings" in fields else None,
         fcm_tokens={
             k: v["booleanValue"]
             for k, v in fields["fcmTokens"]["mapValue"]["fields"].items()
-        },
+        } if "fcmTokens" in fields else None,
         device_order=parse_device_order(fields["deviceOrder"]["mapValue"]),
         email_last_event=(
             parse_email_last_event(fields["emailLastEvent"]["mapValue"])
             if "emailLastEvent" in fields
             else None
         ),
-        export_version=fields["exportVersion"]["doubleValue"],
+        export_version=fields["exportVersion"]["doubleValue"] if "exportVersion" in fields else None,
         last_seen_in_app=None,  # Null field
-        last_login=parse_datetime(fields["lastLogin"]["timestampValue"]),
+        last_login=parse_datetime(fields["lastLogin"]["timestampValue"]) if "lastLogin" in fields else None,
         create_time=parse_datetime(document["createTime"]),
         update_time=parse_datetime(document["updateTime"]),
     )
