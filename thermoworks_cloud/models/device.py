@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Dict
 
-from thermoworks_cloud.utils import parse_datetime, get_field_value
+from thermoworks_cloud.utils import parse_datetime, get_field_value, extract_additional_properties
 
 
 @dataclass
@@ -80,9 +80,6 @@ def _document_to_device(document: dict) -> Device:
     fields = document["fields"]
     device = Device()
 
-    # Dictionary to store additional properties not explicitly defined
-    additional_props = {}
-
     # Set standard properties if they exist
     device.device_id = get_field_value(fields, "deviceId", "stringValue")
     device.serial = get_field_value(fields, "serial", "stringValue")
@@ -91,46 +88,58 @@ def _document_to_device(document: dict) -> Device:
     device.firmware = get_field_value(fields, "firmware", "stringValue")
     device.color = get_field_value(fields, "color", "stringValue")
     device.thumbnail = get_field_value(fields, "thumbnail", "stringValue")
-    device.device_display_units = get_field_value(fields, "deviceDisplayUnits", "stringValue")
-    device.iot_device_id = get_field_value(fields, "iotDeviceId", "stringValue")
+    device.device_display_units = get_field_value(
+        fields, "deviceDisplayUnits", "stringValue")
+    device.iot_device_id = get_field_value(
+        fields, "iotDeviceId", "stringValue")
     device.device_name = get_field_value(fields, "device", "stringValue")
     device.account_id = get_field_value(fields, "accountId", "stringValue")
     device.status = get_field_value(fields, "status", "stringValue")
-    device.battery_state = get_field_value(fields, "batteryState", "stringValue")
+    device.battery_state = get_field_value(
+        fields, "batteryState", "stringValue")
 
     # Handle BigQuery info
     if "bigQuery" in fields and "mapValue" in fields["bigQuery"]:
         try:
-            device.big_query_info = _parse_big_query_info(fields["bigQuery"]["mapValue"])
+            device.big_query_info = _parse_big_query_info(
+                fields["bigQuery"]["mapValue"])
         except (KeyError, TypeError):
             device.big_query_info = None
 
     # Handle numeric values
     device.battery = get_field_value(fields, "battery", "integerValue", int)
-    device.wifi_strength = get_field_value(fields, "wifi_stength", "integerValue", int)
+    device.wifi_strength = get_field_value(
+        fields, "wifi_stength", "integerValue", int)
     device.recording_interval_in_seconds = get_field_value(
         fields, "recordingIntervalInSeconds", "integerValue", int)
     device.transmit_interval_in_seconds = get_field_value(
         fields, "transmitIntervalInSeconds", "integerValue", int)
 
     # Handle boolean values
-    device.pending_load = get_field_value(fields, "pendingLoad", "booleanValue")
-    device.battery_alert_sent = get_field_value(fields, "batteryAlertSent", "booleanValue")
+    device.pending_load = get_field_value(
+        fields, "pendingLoad", "booleanValue")
+    device.battery_alert_sent = get_field_value(
+        fields, "batteryAlertSent", "booleanValue")
 
     # Handle float values
-    device.export_version = get_field_value(fields, "exportVersion", "doubleValue")
+    device.export_version = get_field_value(
+        fields, "exportVersion", "doubleValue")
 
     # Handle datetime values
-    device.last_seen = get_field_value(fields, "lastSeen", "timestampValue", parse_datetime)
-    device.last_purged = get_field_value(fields, "lastPurged", "timestampValue", parse_datetime)
-    device.last_archive = get_field_value(fields, "lastArchive", "timestampValue", parse_datetime)
+    device.last_seen = get_field_value(
+        fields, "lastSeen", "timestampValue", parse_datetime)
+    device.last_purged = get_field_value(
+        fields, "lastPurged", "timestampValue", parse_datetime)
+    device.last_archive = get_field_value(
+        fields, "lastArchive", "timestampValue", parse_datetime)
     device.last_telemetry_saved = get_field_value(
         fields, "lastTelemetrySaved", "timestampValue", parse_datetime)
     device.last_wifi_connection = get_field_value(
         fields, "lastWifiConnection", "timestampValue", parse_datetime)
     device.last_bluetooth_connection = get_field_value(
         fields, "lastBluetoothConnection", "timestampValue", parse_datetime)
-    device.session_start = get_field_value(fields, "sessionStart", "timestampValue", parse_datetime)
+    device.session_start = get_field_value(
+        fields, "sessionStart", "timestampValue", parse_datetime)
 
     # Document timestamps
     if "createTime" in document:
@@ -138,23 +147,17 @@ def _document_to_device(document: dict) -> Device:
     if "updateTime" in document:
         device.update_time = parse_datetime(document["updateTime"])
 
-    # Collect any additional fields not explicitly mapped
-    known_fields = {
-        "deviceId", "serial", "label", "type", "firmware", "color", "thumbnail",
-        "deviceDisplayUnits", "iotDeviceId", "device", "accountId", "status",
-        "batteryState", "bigQuery", "battery", "wifi_stength", "recordingIntervalInSeconds",
-        "transmitIntervalInSeconds", "pendingLoad", "batteryAlertSent", "exportVersion",
-        "lastSeen", "lastPurged", "lastArchive", "lastTelemetrySaved", "lastWifiConnection",
-        "lastBluetoothConnection", "sessionStart"
-    }
-
-    for field_name, field_value in fields.items():
-        if field_name not in known_fields:
-            # Store the raw value for additional properties
-            value_type = next(iter(field_value.keys()))
-            additional_props[field_name] = field_value[value_type]
-
-    if additional_props:
-        device.additional_properties = additional_props
+    # Extract additional properties
+    device.additional_properties = extract_additional_properties(
+        fields,
+        {
+            "deviceId", "serial", "label", "type", "firmware", "color", "thumbnail",
+            "deviceDisplayUnits", "iotDeviceId", "device", "accountId", "status",
+            "batteryState", "bigQuery", "battery", "wifi_stength", "recordingIntervalInSeconds",
+            "transmitIntervalInSeconds", "pendingLoad", "batteryAlertSent", "exportVersion",
+            "lastSeen", "lastPurged", "lastArchive", "lastTelemetrySaved", "lastWifiConnection",
+            "lastBluetoothConnection", "sessionStart"
+        }
+    )
 
     return device

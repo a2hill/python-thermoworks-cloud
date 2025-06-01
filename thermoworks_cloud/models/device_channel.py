@@ -4,7 +4,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Dict
 
-from thermoworks_cloud.utils import parse_datetime, unwrap_firestore_value, get_field_value
+from thermoworks_cloud.utils import (
+    parse_datetime, unwrap_firestore_value, get_field_value, extract_additional_properties
+)
 
 
 @dataclass
@@ -112,9 +114,6 @@ def _document_to_device_channel(document: dict) -> DeviceChannel:
     fields = document.get("fields", {})
     device_channel = DeviceChannel()
 
-    # Dictionary to store additional properties not explicitly defined
-    additional_props = {}
-
     # Set standard properties if they exist
     try:
         if "lastTelemetrySaved" in fields and "timestampValue" in fields["lastTelemetrySaved"]:
@@ -124,7 +123,8 @@ def _document_to_device_channel(document: dict) -> DeviceChannel:
         device_channel.value = unwrap_firestore_value(
             fields.get("value", {})) if "value" in fields else None
         device_channel.units = get_field_value(fields, "units", "stringValue")
-        device_channel.status = get_field_value(fields, "status", "stringValue")
+        device_channel.status = get_field_value(
+            fields, "status", "stringValue")
         device_channel.type = get_field_value(fields, "type", "stringValue")
         device_channel.label = get_field_value(fields, "label", "stringValue")
 
@@ -141,7 +141,8 @@ def _document_to_device_channel(document: dict) -> DeviceChannel:
             device_channel.alarm_low = _parse_alarm(
                 fields["alarmLow"]["mapValue"])
 
-        device_channel.number = get_field_value(fields, "number", "stringValue")
+        device_channel.number = get_field_value(
+            fields, "number", "stringValue")
 
         if "minimum" in fields and "mapValue" in fields["minimum"]:
             device_channel.minimum = _parse_min_max_reading(
@@ -154,21 +155,15 @@ def _document_to_device_channel(document: dict) -> DeviceChannel:
         if "showAvgTemp" in fields and "booleanValue" in fields["showAvgTemp"]:
             device_channel.show_avg_temp = fields["showAvgTemp"]["booleanValue"]
 
-        # Collect any additional fields not explicitly mapped
-        known_fields = {
-            "lastTelemetrySaved", "value", "units", "status", "type", "label",
-            "lastSeen", "alarmHigh", "alarmLow", "number", "minimum", "maximum",
-            "showAvgTemp"
-        }
-
-        for field_name, field_value in fields.items():
-            if field_name not in known_fields:
-                # Store the raw value for additional properties
-                value_type = next(iter(field_value.keys()))
-                additional_props[field_name] = field_value[value_type]
-
-        if additional_props:
-            device_channel.additional_properties = additional_props
+        # Extract additional properties
+        device_channel.additional_properties = extract_additional_properties(
+            fields,
+            {
+                "lastTelemetrySaved", "value", "units", "status", "type", "label",
+                "lastSeen", "alarmHigh", "alarmLow", "number", "minimum", "maximum",
+                "showAvgTemp"
+            }
+        )
 
     except (KeyError, TypeError, ValueError) as _:
         # If there's an error parsing a specific field, continue with what we have
