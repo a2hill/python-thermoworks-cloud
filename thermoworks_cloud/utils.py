@@ -1,6 +1,7 @@
 """Utility functions used within the library."""
 
 from datetime import datetime
+from typing import Any, Callable, Dict, Optional
 
 from aiohttp import ClientResponse
 
@@ -23,6 +24,25 @@ def unwrap_firestore_value(value_dict):
     if len(value) != 1:
         raise ValueError("Firestore values must contain a single value")
     return next(iter(value))
+
+
+def get_field_value(fields: Dict, field_name: str, value_type: str, 
+                   converter: Optional[Callable] = None) -> Any:
+    """Helper function to safely get values from Firestore fields.
+    
+    Args:
+        fields: Dictionary containing Firestore fields
+        field_name: Name of the field to retrieve
+        value_type: Type of value to retrieve (e.g., "stringValue", "integerValue")
+        converter: Optional function to convert the value
+        
+    Returns:
+        The value if found, or None if not found
+    """
+    if field_name in fields and value_type in fields[field_name]:
+        value = fields[field_name][value_type]
+        return converter(value) if converter else value
+    return None
 
 
 async def format_client_response(response: ClientResponse) -> str:
