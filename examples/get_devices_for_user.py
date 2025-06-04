@@ -93,23 +93,30 @@ async def __main__():
 
         # Iterate over the device serials and fetch the device document for each
         for device_serial in device_serials:
-            device = await thermoworks.get_device(device_serial)
-            devices.append(device)
-            device_channels = []
+            try:
+                device = await thermoworks.get_device(device_serial)
+                devices.append(device)
+                device_channels = []
 
-            # According to reverse engineering, channels seem to be 1 indexed
-            for channel in range(1, 10):
-                try:
-                    device_channels.append(
-                        await thermoworks.get_device_channel(
-                            device_serial=device_serial, channel=str(channel)
+                # According to reverse engineering, channels seem to be 1 indexed
+                for channel in range(1, 10):
+                    try:
+                        device_channels.append(
+                            await thermoworks.get_device_channel(
+                                device_serial=device_serial, channel=str(channel)
+                            )
                         )
-                    )
-                except ResourceNotFoundError:
-                    # Go until there are no more
-                    break
+                    except ResourceNotFoundError:
+                        # Go until there are no more
+                        break
+                    except Exception as e:
+                        print(f"Error getting channel {channel} for device {device_serial}: {e}")
+                        continue
 
-            device_channels_by_device[device_serial] = device_channels
+                device_channels_by_device[device_serial] = device_channels
+            except Exception as e:
+                print(f"Error getting device {device_serial}: {e}")
+                continue
 
         # Print information about each device
         print(f"\nFound {len(devices)} devices")
