@@ -96,6 +96,42 @@ def extract_additional_properties(firestore_fields: Dict, dataclass_type: Type) 
     return additional_props if additional_props else None
 
 
+def map_firestore_fields(firestore_fields: Dict, dataclass_type: Type) -> Any:
+    """Map Firestore fields to a dataclass instance based on field metadata.
+
+    Args:
+        firestore_fields: Dictionary containing Firestore fields
+        dataclass_type: The dataclass type to map fields to
+
+    Returns:
+        An instance of the dataclass with fields populated from Firestore data
+    """
+    instance = dataclass_type()
+
+    for field_info in dataclass_fields(dataclass_type):
+        if field_info.name == 'additional_properties':
+            continue
+
+        # Get API field name
+        api_name = api_field_name(field_info)
+
+        # Get Firestore type and converter if specified
+        if 'firestore_type' in field_info.metadata:
+            firestore_type = field_info.metadata['firestore_type']
+            converter = field_info.metadata.get('converter')
+
+            # Set the field value
+            value = get_field_value(
+                firestore_fields, api_name, firestore_type, converter)
+            setattr(instance, field_info.name, value)
+
+    # Handle additional properties
+    instance.additional_properties = extract_additional_properties(
+        firestore_fields, dataclass_type)
+
+    return instance
+
+
 async def format_client_response(response: ClientResponse) -> str:
     """Format a string from the pertinent details of a response."""
     return f"status={response.status} reason={response.reason} body={await response.text()}"

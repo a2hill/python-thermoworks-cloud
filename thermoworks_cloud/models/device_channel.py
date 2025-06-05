@@ -1,32 +1,36 @@
 """Classes related to a DeviceChannel."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, Dict
 
-from thermoworks_cloud.utils import (
-    parse_datetime, unwrap_firestore_value, get_field_value, extract_additional_properties
-)
+from thermoworks_cloud.utils import parse_datetime, unwrap_firestore_value, map_firestore_fields
 
 
 @dataclass
 class Reading:
     """A temperature reading from a device channel."""
 
-    value: Optional[float] = None
+    value: Optional[float] = field(default=None, metadata={
+                                   "firestore_type": "doubleValue"})
     """"The temperature units as a string like "F" """
-    units: Optional[str] = None
+    units: Optional[str] = field(default=None, metadata={
+                                 "firestore_type": "stringValue"})
 
 
 @dataclass
 class Alarm:
     """An alarm on a device channel."""
 
-    enabled: Optional[bool] = None
-    alarming: Optional[bool] = None
-    value: Optional[int] = None
+    enabled: Optional[bool] = field(
+        default=None, metadata={"firestore_type": "booleanValue"})
+    alarming: Optional[bool] = field(
+        default=None, metadata={"firestore_type": "booleanValue"})
+    value: Optional[int] = field(default=None, metadata={
+                                 "firestore_type": "integerValue", "converter": int})
     """"The temperature units as a string like "F" """
-    units: Optional[str] = None
+    units: Optional[str] = field(default=None, metadata={
+                                 "firestore_type": "stringValue"})
 
 
 @dataclass
@@ -34,7 +38,8 @@ class MinMaxReading:
     """A minimum or maximum reading on a device channel."""
 
     reading: Optional[Reading] = None
-    date_reading: Optional[datetime] = None
+    date_reading: Optional[datetime] = field(default=None, metadata={
+                                             "firestore_type": "timestampValue", "converter": parse_datetime})
 
 
 @dataclass
@@ -44,94 +49,82 @@ class DeviceChannel:  # pylint: disable=too-many-instance-attributes
     All fields are optional as different device types may have different properties.
     """
 
-    last_telemetry_saved: Optional[datetime] = None
+    last_telemetry_saved: Optional[datetime] = field(default=None, metadata={
+                                                     "firestore_type": "timestampValue", "converter": parse_datetime})
     """"The last time a telemetry packet was received from the device channel."""
-    value: Optional[float] = None
+    value: Optional[float] = field(default=None, metadata={
+                                   "firestore_type": "doubleValue"})
     """"The temperature units as a string like "F" """
-    units: Optional[str] = None
+    units: Optional[str] = field(default=None, metadata={
+                                 "firestore_type": "stringValue"})
     """"The only observed value for this field is "NORMAL"."""
-    status: Optional[str] = None
-    type: Optional[str] = None
+    status: Optional[str] = field(default=None, metadata={
+                                  "firestore_type": "stringValue"})
+    type: Optional[str] = field(default=None, metadata={
+                                "firestore_type": "stringValue"})
     """Customer provided 'name' for this device channel."""
-    label: Optional[str] = None
-    last_seen: Optional[datetime] = None
-    alarm_high: Optional[Alarm] = None
-    alarm_low: Optional[Alarm] = None
+    label: Optional[str] = field(default=None, metadata={
+                                 "firestore_type": "stringValue"})
+    last_seen: Optional[datetime] = field(default=None, metadata={
+                                          "firestore_type": "timestampValue", "converter": parse_datetime})
+    alarm_high: Optional[Alarm] = field(
+        default=None, metadata={"api_name": "alarmHigh"})
+    alarm_low: Optional[Alarm] = field(
+        default=None, metadata={"api_name": "alarmLow"})
     """The device channel number"""
-    number: Optional[str] = None
+    number: Optional[str] = field(default=None, metadata={
+                                  "firestore_type": "stringValue"})
     minimum: Optional[MinMaxReading] = None
     maximum: Optional[MinMaxReading] = None
-    show_avg_temp: Optional[bool] = None
+    show_avg_temp: Optional[bool] = field(default=None, metadata={
+                                          "api_name": "showAvgTemp", "firestore_type": "booleanValue"})
 
     # Dictionary to store any additional properties not explicitly defined
     additional_properties: Optional[Dict] = None
 
 
-def _parse_alarm(alarm_data: dict) -> Alarm:
+def _parse_alarm(alarm_data: dict) -> Optional[Alarm]:
     """Parse alarm data into an Alarm object."""
-    try:
-        fields = alarm_data.get("fields", {})
-        return Alarm(
-            enabled=fields.get("enabled", {}).get("booleanValue"),
-            alarming=fields.get("alarming", {}).get("booleanValue"),
-            value=int(fields.get("value", {}).get("integerValue", 0)
-                      ) if "value" in fields else None,
-            units=fields.get("units", {}).get("stringValue"),
-        )
-    except (KeyError, TypeError, ValueError):
-        return Alarm()
+    if not alarm_data or "fields" not in alarm_data:
+        return None
+
+    return map_firestore_fields(alarm_data["fields"], Alarm)
 
 
-def _parse_min_max_reading(data: dict) -> MinMaxReading:
+def _parse_reading(reading_data: dict) -> Optional[Reading]:
+    """Parse reading data into a Reading object."""
+    if not reading_data or "fields" not in reading_data:
+        return None
+
+    return map_firestore_fields(reading_data["fields"], Reading)
+
+
+def _parse_min_max_reading(data: dict) -> Optional[MinMaxReading]:
     """Parse minimum or maximum reading data."""
-    try:
-        fields = data.get("fields", {})
-        reading_map = fields.get("reading", {}).get(
-            "mapValue", {}).get("fields", {})
+    if not data or "fields" not in data:
+        return None
 
-        reading = Reading(
-            value=unwrap_firestore_value(reading_map.get(
-                "value", {})) if "value" in reading_map else None,
-            units=unwrap_firestore_value(reading_map.get(
-                "units", {})) if "units" in reading_map else None,
-        )
+    fields = data["fields"]
+    result = MinMaxReading()
 
-        date_reading = None
-        if "dateReading" in fields and "timestampValue" in fields["dateReading"]:
-            date_reading = parse_datetime(
-                fields["dateReading"]["timestampValue"])
+    # Parse date_reading
+    if "dateReading" in fields and "timestampValue" in fields["dateReading"]:
+        result.date_reading = parse_datetime(
+            fields["dateReading"]["timestampValue"])
 
-        return MinMaxReading(
-            reading=reading,
-            date_reading=date_reading,
-        )
-    except (KeyError, TypeError, ValueError):
-        return MinMaxReading()
+    # Parse reading
+    if "reading" in fields and "mapValue" in fields["reading"]:
+        result.reading = _parse_reading(fields["reading"]["mapValue"])
+
+    return result
 
 
 def _document_to_device_channel(document: dict) -> DeviceChannel:
     """Convert a Firestore Document object into a Device object."""
     fields = document.get("fields", {})
-    device_channel = DeviceChannel()
+    device_channel = map_firestore_fields(fields, DeviceChannel)
 
-    # Set standard properties if they exist
     try:
-        if "lastTelemetrySaved" in fields and "timestampValue" in fields["lastTelemetrySaved"]:
-            device_channel.last_telemetry_saved = parse_datetime(
-                fields["lastTelemetrySaved"]["timestampValue"])
-
-        device_channel.value = unwrap_firestore_value(
-            fields.get("value", {})) if "value" in fields else None
-        device_channel.units = get_field_value(fields, "units", "stringValue")
-        device_channel.status = get_field_value(
-            fields, "status", "stringValue")
-        device_channel.type = get_field_value(fields, "type", "stringValue")
-        device_channel.label = get_field_value(fields, "label", "stringValue")
-
-        if "lastSeen" in fields and "timestampValue" in fields["lastSeen"]:
-            device_channel.last_seen = parse_datetime(
-                fields["lastSeen"]["timestampValue"])
-
         # Handle complex objects
         if "alarmHigh" in fields and "mapValue" in fields["alarmHigh"]:
             device_channel.alarm_high = _parse_alarm(
@@ -141,9 +134,6 @@ def _document_to_device_channel(document: dict) -> DeviceChannel:
             device_channel.alarm_low = _parse_alarm(
                 fields["alarmLow"]["mapValue"])
 
-        device_channel.number = get_field_value(
-            fields, "number", "stringValue")
-
         if "minimum" in fields and "mapValue" in fields["minimum"]:
             device_channel.minimum = _parse_min_max_reading(
                 fields["minimum"]["mapValue"])
@@ -151,13 +141,6 @@ def _document_to_device_channel(document: dict) -> DeviceChannel:
         if "maximum" in fields and "mapValue" in fields["maximum"]:
             device_channel.maximum = _parse_min_max_reading(
                 fields["maximum"]["mapValue"])
-
-        if "showAvgTemp" in fields and "booleanValue" in fields["showAvgTemp"]:
-            device_channel.show_avg_temp = fields["showAvgTemp"]["booleanValue"]
-
-        # Extract additional properties
-        device_channel.additional_properties = extract_additional_properties(
-            fields, DeviceChannel)
 
     except (KeyError, TypeError, ValueError) as _:
         # If there's an error parsing a specific field, continue with what we have
