@@ -157,13 +157,7 @@ def _document_to_device_channel(document: dict) -> DeviceChannel:
 
         # Extract additional properties
         device_channel.additional_properties = extract_additional_properties(
-            fields,
-            {
-                "lastTelemetrySaved", "value", "units", "status", "type", "label",
-                "lastSeen", "alarmHigh", "alarmLow", "number", "minimum", "maximum",
-                "showAvgTemp"
-            }
-        )
+            fields, DeviceChannel)
 
     except (KeyError, TypeError, ValueError) as _:
         # If there's an error parsing a specific field, continue with what we have

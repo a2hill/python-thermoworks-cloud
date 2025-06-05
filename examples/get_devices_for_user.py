@@ -24,34 +24,9 @@ email = os.environ["THERMOWORKS_EMAIL"]
 password = os.environ["THERMOWORKS_PASSWORD"]
 
 
-def dataclass_to_dict(obj):
-    """Convert a dataclass instance to a dictionary, handling None values and nested dataclasses."""
-    if obj is None:
-        return None
-
-    if hasattr(obj, "__dataclass_fields__"):
-        result = {}
-        for key, value in asdict(obj).items():
-            if key == "additional_properties" and value is not None:
-                # Merge additional properties into the main dictionary
-                result.update(value)
-            elif value is not None:  # Skip None values for cleaner output
-                if isinstance(value, dict):
-                    result[key] = dataclass_to_dict(value)
-                else:
-                    result[key] = value
-        return result
-    elif isinstance(obj, dict):
-        return {k: dataclass_to_dict(v) for k, v in obj.items() if v is not None}
-    elif isinstance(obj, list):
-        return [dataclass_to_dict(item) for item in obj]
-    else:
-        return obj
-
-
 def print_device_info(device: Device, device_channels: list[DeviceChannel]):
     """Print detailed information about a device and its channels."""
-    device_dict = dataclass_to_dict(device)
+    device_dict = asdict(device)
 
     print(f"\n{'=' * 50}")
     print(f"DEVICE TYPE: {device.type or 'Unknown'}")
@@ -61,13 +36,13 @@ def print_device_info(device: Device, device_channels: list[DeviceChannel]):
 
     # Print all device properties
     print("\nDEVICE PROPERTIES:")
-    pprint.pprint(device_dict)
+    pprint.pprint(device_dict, compact=False)
 
     # Print channel information
     if device_channels:
         print(f"\nCHANNELS ({len(device_channels)}):")
         for i, channel in enumerate(device_channels):
-            channel_dict = dataclass_to_dict(channel)
+            channel_dict = asdict(channel)
             print(f"\n  Channel {i+1}:")
             pprint.pprint(channel_dict)
     else:
@@ -103,14 +78,16 @@ async def __main__():
                     try:
                         device_channels.append(
                             await thermoworks.get_device_channel(
-                                device_serial=device_serial, channel=str(channel)
+                                device_serial=device_serial, channel=str(
+                                    channel)
                             )
                         )
                     except ResourceNotFoundError:
                         # Go until there are no more
                         break
                     except Exception as e:
-                        print(f"Error getting channel {channel} for device {device_serial}: {e}")
+                        print(
+                            f"Error getting channel {channel} for device {device_serial}: {e}")
                         continue
 
                 device_channels_by_device[device_serial] = device_channels
@@ -141,9 +118,9 @@ async def __main__():
 
         # Save the data to a JSON file for further analysis
         output_data = {
-            "devices": [dataclass_to_dict(device) for device in devices],
+            "devices": [asdict(device) for device in devices],
             "device_channels": {
-                serial: [dataclass_to_dict(channel) for channel in channels]
+                serial: [asdict(channel) for channel in channels]
                 for serial, channels in device_channels_by_device.items()
             }
         }
@@ -151,7 +128,7 @@ async def __main__():
         with open("thermoworks_devices_data.json", "w") as f:
             json.dump(output_data, f, indent=2, default=str)
 
-        print(f"\nData saved to thermoworks_devices_data.json for further analysis")
+        print("Data saved to thermoworks_devices_data.json for further analysis")
 
 
 asyncio.run(__main__())

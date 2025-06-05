@@ -1,7 +1,8 @@
 """Utility functions used within the library."""
 
+from dataclasses import Field, fields as dataclass_fields
 from datetime import datetime
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Type
 
 from aiohttp import ClientResponse
 
@@ -45,19 +46,48 @@ def get_field_value(fields: Dict, field_name: str, value_type: str,
     return None
 
 
-def extract_additional_properties(fields: Dict, known_fields: set) -> Optional[Dict]:
+def api_field_name(field: Field) -> str:
+    """Get the API field name for a dataclass field.
+
+    Checks for a 'api_name' metadata entry, otherwise converts from snake_case to camelCase.
+
+    Args:
+        field: A dataclass field
+
+    Returns:
+        The API field name
+    """
+    # Check if the field has an api_name metadata entry
+    if 'api_name' in field.metadata:
+        return field.metadata['api_name']
+
+    # Otherwise convert from snake_case to camelCase
+    parts = field.name.split('_')
+    return parts[0] + ''.join(p.capitalize() for p in parts[1:])
+
+
+def extract_additional_properties(firestore_fields: Dict, dataclass_type: Type) -> Optional[Dict]:
     """Extract additional properties not explicitly mapped.
 
     Args:
-        fields: Dictionary containing Firestore fields
-        known_fields: Set of field names that are already handled
+        firestore_fields: Dictionary containing Firestore fields
+        dataclass_type: The dataclass type to extract field names from
 
     Returns:
         Dictionary of additional properties, or None if none found
     """
-    additional_props = {}
+    # Generate known fields from dataclass
+    known_fields = set()
+    for field in dataclass_fields(dataclass_type):
+        if field.name == 'additional_properties':
+            continue
 
-    for field_name, field_value in fields.items():
+        # Get the API field name
+        known_fields.add(api_field_name(field))
+
+    # Extract additional properties
+    additional_props = {}
+    for field_name, field_value in firestore_fields.items():
         if field_name not in known_fields:
             # Store the raw value for additional properties
             value_type = next(iter(field_value.keys()))

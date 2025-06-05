@@ -1,6 +1,6 @@
 """Classes related to a Device."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, Dict
 
@@ -32,13 +32,16 @@ class Device:  # pylint: disable=too-many-instance-attributes
     thumbnail: Optional[str] = None
     device_display_units: Optional[str] = None
     iot_device_id: Optional[str] = None
-    device_name: Optional[str] = None
+    device_name: Optional[str] = field(
+        default=None, metadata={"api_name": "device"})
     account_id: Optional[str] = None
     status: Optional[str] = None
     battery_state: Optional[str] = None
-    big_query_info: Optional[BigQueryInfo] = None
+    big_query_info: Optional[BigQueryInfo] = field(
+        default=None, metadata={"api_name": "bigQuery"})
     battery: Optional[int] = None
-    wifi_strength: Optional[int] = None
+    wifi_strength: Optional[int] = field(
+        default=None, metadata={"api_name": "wifi_stength"})  # Typo in API
     recording_interval_in_seconds: Optional[int] = None
     transmit_interval_in_seconds: Optional[int] = None
     pending_load: Optional[bool] = None
@@ -149,15 +152,6 @@ def _document_to_device(document: dict) -> Device:
 
     # Extract additional properties
     device.additional_properties = extract_additional_properties(
-        fields,
-        {
-            "deviceId", "serial", "label", "type", "firmware", "color", "thumbnail",
-            "deviceDisplayUnits", "iotDeviceId", "device", "accountId", "status",
-            "batteryState", "bigQuery", "battery", "wifi_stength", "recordingIntervalInSeconds",
-            "transmitIntervalInSeconds", "pendingLoad", "batteryAlertSent", "exportVersion",
-            "lastSeen", "lastPurged", "lastArchive", "lastTelemetrySaved", "lastWifiConnection",
-            "lastBluetoothConnection", "sessionStart"
-        }
-    )
+        fields, Device)
 
     return device

@@ -1,144 +1,221 @@
 """Classes related to User data"""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
+from typing import Dict, Optional
 
-from thermoworks_cloud.utils import parse_datetime
+from thermoworks_cloud.utils import parse_datetime, get_field_value, extract_additional_properties
 
 
 @dataclass
 class EmailLastEvent:  # pylint: disable=too-many-instance-attributes
     """Contains information about the last email sent to a user."""
 
-    reason: str
-    event: str
-    email: str
-    bounce_classification: str
-    tls: int
-    timestamp: int
-    smtp_id: str
-    type: str
-    sg_message_id: str
-    sg_event_id: str
+    reason: Optional[str] = None
+    event: Optional[str] = None
+    email: Optional[str] = None
+    bounce_classification: Optional[str] = field(
+        # Keeps underscores
+        default=None, metadata={"api_name": "bounce_classification"})
+    tls: Optional[int] = None
+    timestamp: Optional[int] = None
+    smtp_id: Optional[str] = field(
+        default=None, metadata={"api_name": "smtp-id"})  # Uses hyphen
+    type: Optional[str] = None
+    sg_message_id: Optional[str] = field(
+        # Keeps underscores
+        default=None, metadata={"api_name": "sg_message_id"})
+    sg_event_id: Optional[str] = field(
+        # Keeps underscores
+        default=None, metadata={"api_name": "sg_event_id"})
+
+    # Dictionary to store any additional properties not explicitly defined
+    additional_properties: Optional[Dict] = None
 
 
 @dataclass
 class DeviceOrderItem:
     """Contains information about a device's order within the users account."""
 
-    device_id: str
-    order: int
+    device_id: Optional[str] = None
+    order: Optional[int] = None
+
+    # Dictionary to store any additional properties not explicitly defined
+    additional_properties: Optional[Dict] = None
 
 
 @dataclass
 class User:  # pylint: disable=too-many-instance-attributes
-    """Contains information about a User."""
+    """Contains information about a User.
 
-    uid: str
-    account_id: str
-    display_name: str
-    email: str
-    provider: str
-    time_zone: str
-    app_version: str
-    preferred_units: str
-    locale: str
-    photo_url: str
-    use_24_time: bool
-    roles: dict[str, bool]
-    account_roles: dict[str, bool]
-    system: Optional[dict[str, bool]]
-    notification_settings: Optional[dict[str, bool]]
-    fcm_tokens: Optional[dict[str, bool]]
-    device_order: dict[str, list[DeviceOrderItem]]
-    email_last_event: EmailLastEvent | None
-    export_version: Optional[float]
-    last_seen_in_app: None
-    last_login: Optional[datetime]
-    create_time: datetime
-    update_time: datetime
+    All fields are optional as different users may have different properties.
+    """
+
+    uid: Optional[str] = None
+    account_id: Optional[str] = None
+    display_name: Optional[str] = None
+    email: Optional[str] = None
+    provider: Optional[str] = None
+    time_zone: Optional[str] = None
+    app_version: Optional[str] = None
+    preferred_units: Optional[str] = None
+    locale: Optional[str] = None
+    photo_url: Optional[str] = field(
+        default=None, metadata={"api_name": "photoURL"})
+    use_24_time: Optional[bool] = None
+    roles: Optional[Dict[str, bool]] = None
+    account_roles: Optional[Dict[str, bool]] = None
+    system: Optional[Dict[str, bool]] = None
+    notification_settings: Optional[Dict[str, bool]] = None
+    fcm_tokens: Optional[Dict[str, bool]] = None
+    device_order: Optional[Dict[str, list[DeviceOrderItem]]] = None
+    email_last_event: Optional[EmailLastEvent] = None
+    export_version: Optional[float] = None
+    last_seen_in_app: Optional[None] = None
+    last_login: Optional[datetime] = None
+    create_time: Optional[datetime] = None
+    update_time: Optional[datetime] = None
+
+    # Dictionary to store any additional properties not explicitly defined
+    additional_properties: Optional[Dict] = None
 
 
 def parse_email_last_event(data: dict) -> EmailLastEvent:
     """Parse emailLastEvent into an EmailLastEvent dataclass."""
-    fields = data["fields"]
-    return EmailLastEvent(
-        reason=fields["reason"]["stringValue"],
-        event=fields["event"]["stringValue"],
-        email=fields["email"]["stringValue"],
-        bounce_classification=fields["bounce_classification"]["stringValue"],
-        tls=int(fields["tls"]["integerValue"]),
-        timestamp=int(fields["timestamp"]["integerValue"]),
-        smtp_id=fields["smtp-id"]["stringValue"],
-        type=fields["type"]["stringValue"],
-        sg_message_id=fields["sg_message_id"]["stringValue"],
-        sg_event_id=fields["sg_event_id"]["stringValue"],
-    )
+    fields = data.get("fields", {})
+    event = EmailLastEvent()
+
+    # Set standard properties if they exist
+    event.reason = get_field_value(fields, "reason", "stringValue")
+    event.event = get_field_value(fields, "event", "stringValue")
+    event.email = get_field_value(fields, "email", "stringValue")
+    event.bounce_classification = get_field_value(
+        fields, "bounce_classification", "stringValue")
+    event.tls = get_field_value(fields, "tls", "integerValue", int)
+    event.timestamp = get_field_value(fields, "timestamp", "integerValue", int)
+    event.smtp_id = get_field_value(fields, "smtp-id", "stringValue")
+    event.type = get_field_value(fields, "type", "stringValue")
+    event.sg_message_id = get_field_value(
+        fields, "sg_message_id", "stringValue")
+    event.sg_event_id = get_field_value(fields, "sg_event_id", "stringValue")
+
+    # Extract additional properties
+    event.additional_properties = extract_additional_properties(
+        fields, EmailLastEvent)
+
+    return event
 
 
-def parse_device_order(data: dict) -> dict[str, list[DeviceOrderItem]]:
+def parse_device_order(data: dict) -> Dict[str, list[DeviceOrderItem]]:
     """Parse deviceOrder into a dictionary of account ID to DeviceOrderItem list."""
     orders = {}
-    for account_id, devices in data["fields"].items():
-        orders[account_id] = [
-            DeviceOrderItem(
-                device_id=device["mapValue"]["fields"]["deviceId"]["stringValue"],
-                order=int(device["mapValue"]["fields"]
-                          ["order"]["integerValue"]),
-            )
-            for device in devices["arrayValue"]["values"]
-        ]
+    fields = data.get("fields", {})
+
+    for account_id, devices in fields.items():
+        if "arrayValue" not in devices or "values" not in devices["arrayValue"]:
+            continue
+
+        device_items = []
+        for device in devices["arrayValue"]["values"]:
+            if "mapValue" not in device or "fields" not in device["mapValue"]:
+                continue
+
+            device_fields = device["mapValue"]["fields"]
+            item = DeviceOrderItem()
+
+            # Set standard properties if they exist
+            item.device_id = get_field_value(
+                device_fields, "deviceId", "stringValue")
+            item.order = get_field_value(
+                device_fields, "order", "integerValue", int)
+
+            # Extract additional properties
+            item.additional_properties = extract_additional_properties(
+                device_fields, DeviceOrderItem)
+
+            device_items.append(item)
+
+        if device_items:
+            orders[account_id] = device_items
+
     return orders
 
 
 def document_to_user(document: dict) -> User:
     """Convert a Firestore Document object into a User object."""
-    fields = document["fields"]
+    fields = document.get("fields", {})
+    user = User()
 
-    return User(
-        uid=fields["uid"]["stringValue"],
-        account_id=fields["accountId"]["stringValue"],
-        display_name=fields["displayName"]["stringValue"],
-        email=fields["email"]["stringValue"],
-        provider=fields["provider"]["stringValue"],
-        time_zone=fields["timeZone"]["stringValue"],
-        app_version=fields["appVersion"]["stringValue"],
-        preferred_units=fields["preferredUnits"]["stringValue"],
-        locale=fields["locale"]["stringValue"],
-        photo_url=fields["photoURL"]["stringValue"],
-        use_24_time=fields["use24Time"]["booleanValue"],
-        roles={
-            k: v["booleanValue"]
+    # Set standard properties if they exist
+    user.uid = get_field_value(fields, "uid", "stringValue")
+    user.account_id = get_field_value(fields, "accountId", "stringValue")
+    user.display_name = get_field_value(fields, "displayName", "stringValue")
+    user.email = get_field_value(fields, "email", "stringValue")
+    user.provider = get_field_value(fields, "provider", "stringValue")
+    user.time_zone = get_field_value(fields, "timeZone", "stringValue")
+    user.app_version = get_field_value(fields, "appVersion", "stringValue")
+    user.preferred_units = get_field_value(
+        fields, "preferredUnits", "stringValue")
+    user.locale = get_field_value(fields, "locale", "stringValue")
+    user.photo_url = get_field_value(fields, "photoURL", "stringValue")
+    user.use_24_time = get_field_value(fields, "use24Time", "booleanValue")
+
+    # Handle map values
+    if "roles" in fields and "mapValue" in fields["roles"] and "fields" in fields["roles"]["mapValue"]:
+        user.roles = {
+            k: v.get("booleanValue", False)
             for k, v in fields["roles"]["mapValue"]["fields"].items()
-        },
-        account_roles={
-            k: v["booleanValue"]
+        }
+
+    if "accountRoles" in fields and "mapValue" in fields["accountRoles"] and "fields" in fields["accountRoles"]["mapValue"]:
+        user.account_roles = {
+            k: v.get("booleanValue", False)
             for k, v in fields["accountRoles"]["mapValue"]["fields"].items()
-        },
-        system={
-            k: v["booleanValue"]
+        }
+
+    if "system" in fields and "mapValue" in fields["system"] and "fields" in fields["system"]["mapValue"]:
+        user.system = {
+            k: v.get("booleanValue", False)
             for k, v in fields["system"]["mapValue"]["fields"].items()
-        } if "system" in fields else None,
-        notification_settings={
-            k: v["booleanValue"]
+        }
+
+    if "notificationSettings" in fields and "mapValue" in fields["notificationSettings"] and "fields" in fields["notificationSettings"]["mapValue"]:
+        user.notification_settings = {
+            k: v.get("booleanValue", False)
             for k, v in fields["notificationSettings"]["mapValue"]["fields"].items()
-        } if "notificationSettings" in fields else None,
-        fcm_tokens={
-            k: v["booleanValue"]
+        }
+
+    if "fcmTokens" in fields and "mapValue" in fields["fcmTokens"] and "fields" in fields["fcmTokens"]["mapValue"]:
+        user.fcm_tokens = {
+            k: v.get("booleanValue", False)
             for k, v in fields["fcmTokens"]["mapValue"]["fields"].items()
-        } if "fcmTokens" in fields else None,
-        device_order=parse_device_order(fields["deviceOrder"]["mapValue"]),
-        email_last_event=(
-            parse_email_last_event(fields["emailLastEvent"]["mapValue"])
-            if "emailLastEvent" in fields
-            else None
-        ),
-        export_version=fields["exportVersion"]["doubleValue"]
-        if "exportVersion" in fields else None,
-        last_seen_in_app=None,  # Null field
-        last_login=parse_datetime(
-            fields["lastLogin"]["timestampValue"]) if "lastLogin" in fields else None,
-        create_time=parse_datetime(document["createTime"]),
-        update_time=parse_datetime(document["updateTime"]),
-    )
+        }
+
+    # Handle device order
+    if "deviceOrder" in fields and "mapValue" in fields["deviceOrder"]:
+        user.device_order = parse_device_order(
+            fields["deviceOrder"]["mapValue"])
+
+    # Handle email last event
+    if "emailLastEvent" in fields and "mapValue" in fields["emailLastEvent"]:
+        user.email_last_event = parse_email_last_event(
+            fields["emailLastEvent"]["mapValue"])
+
+    # Handle other fields
+    user.export_version = get_field_value(
+        fields, "exportVersion", "doubleValue")
+    user.last_seen_in_app = None  # Null field
+
+    if "lastLogin" in fields and "timestampValue" in fields["lastLogin"]:
+        user.last_login = parse_datetime(fields["lastLogin"]["timestampValue"])
+
+    # Document timestamps
+    if "createTime" in document:
+        user.create_time = parse_datetime(document["createTime"])
+    if "updateTime" in document:
+        user.update_time = parse_datetime(document["updateTime"])
+
+    # Extract additional properties
+    user.additional_properties = extract_additional_properties(fields, User)
+
+    return user
