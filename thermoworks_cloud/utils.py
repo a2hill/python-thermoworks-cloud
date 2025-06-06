@@ -96,6 +96,27 @@ def extract_additional_properties(firestore_fields: Dict, dataclass_type: Type) 
     return additional_props if additional_props else None
 
 
+def parse_map_field(field_value: Dict, value_type: str) -> Optional[Dict]:
+    """Parse a map field into a dictionary.
+
+    Args:
+        field_value: The Firestore field value containing a mapValue
+        value_type: The type of values in the map (e.g., "booleanValue")
+
+    Returns:
+        A dictionary with the parsed values
+    """
+    if "mapValue" not in field_value or "fields" not in field_value["mapValue"]:
+        return None
+
+    result = {}
+    for key, value in field_value["mapValue"]["fields"].items():
+        if value_type in value:
+            result[key] = value[value_type]
+
+    return result
+
+
 def map_firestore_fields(firestore_fields: Dict, dataclass_type: Type) -> Any:
     """Map Firestore fields to a dataclass instance based on field metadata.
 
@@ -115,7 +136,11 @@ def map_firestore_fields(firestore_fields: Dict, dataclass_type: Type) -> Any:
         # Get API field name
         api_name = api_field_name(field_info)
 
-        # Get Firestore type and converter if specified
+        # Skip if field is not in Firestore data
+        if api_name not in firestore_fields:
+            continue
+
+        # Handle simple fields with firestore_type metadata
         if 'firestore_type' in field_info.metadata:
             firestore_type = field_info.metadata['firestore_type']
             converter = field_info.metadata.get('converter')
@@ -125,11 +150,33 @@ def map_firestore_fields(firestore_fields: Dict, dataclass_type: Type) -> Any:
                 firestore_fields, api_name, firestore_type, converter)
             setattr(instance, field_info.name, value)
 
+        # Handle map fields with map_of metadata
+        elif 'map_of' in field_info.metadata:
+            value_type = field_info.metadata['map_of']
+            value = parse_map_field(firestore_fields[api_name], value_type)
+            setattr(instance, field_info.name, value)
+
     # Handle additional properties
     instance.additional_properties = extract_additional_properties(
         firestore_fields, dataclass_type)
 
     return instance
+
+
+def parse_nested_object(data: dict, dataclass_type: Type) -> Any:
+    """Parse a nested Firestore object into a dataclass instance.
+
+    Args:
+        data: The Firestore data containing a mapValue with fields
+        dataclass_type: The dataclass type to map the fields to
+
+    Returns:
+        An instance of the dataclass type, or None if the data is invalid
+    """
+    if not data or "fields" not in data:
+        return None
+
+    return map_firestore_fields(data["fields"], dataclass_type)
 
 
 async def format_client_response(response: ClientResponse) -> str:

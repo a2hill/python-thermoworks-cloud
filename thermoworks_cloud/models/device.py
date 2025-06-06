@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, Dict
 
-from thermoworks_cloud.utils import parse_datetime, map_firestore_fields
+from thermoworks_cloud.utils import parse_datetime, map_firestore_fields, parse_nested_object
 
 
 @dataclass
@@ -88,14 +88,6 @@ class Device:  # pylint: disable=too-many-instance-attributes
     additional_properties: Optional[Dict] = None
 
 
-def _parse_big_query_info(data: dict) -> Optional[BigQueryInfo]:
-    """Parse bigQuery into a BigQueryInfo dataclass."""
-    if not data or "fields" not in data:
-        return None
-
-    return map_firestore_fields(data["fields"], BigQueryInfo)
-
-
 def _document_to_device(document: dict) -> Device:
     """Convert a Firestore Document object into a Device object."""
     fields = document["fields"]
@@ -104,8 +96,8 @@ def _document_to_device(document: dict) -> Device:
     # Handle BigQuery info separately since it's a nested object
     if "bigQuery" in fields and "mapValue" in fields["bigQuery"]:
         try:
-            device.big_query_info = _parse_big_query_info(
-                fields["bigQuery"]["mapValue"])
+            device.big_query_info = parse_nested_object(
+                fields["bigQuery"]["mapValue"], BigQueryInfo)
         except (KeyError, TypeError):
             device.big_query_info = None
 

@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, Dict
 
-from thermoworks_cloud.utils import parse_datetime, unwrap_firestore_value, map_firestore_fields
+from thermoworks_cloud.utils import parse_datetime, map_firestore_fields, parse_nested_object
 
 
 @dataclass
@@ -83,22 +83,6 @@ class DeviceChannel:  # pylint: disable=too-many-instance-attributes
     additional_properties: Optional[Dict] = None
 
 
-def _parse_alarm(alarm_data: dict) -> Optional[Alarm]:
-    """Parse alarm data into an Alarm object."""
-    if not alarm_data or "fields" not in alarm_data:
-        return None
-
-    return map_firestore_fields(alarm_data["fields"], Alarm)
-
-
-def _parse_reading(reading_data: dict) -> Optional[Reading]:
-    """Parse reading data into a Reading object."""
-    if not reading_data or "fields" not in reading_data:
-        return None
-
-    return map_firestore_fields(reading_data["fields"], Reading)
-
-
 def _parse_min_max_reading(data: dict) -> Optional[MinMaxReading]:
     """Parse minimum or maximum reading data."""
     if not data or "fields" not in data:
@@ -114,7 +98,8 @@ def _parse_min_max_reading(data: dict) -> Optional[MinMaxReading]:
 
     # Parse reading
     if "reading" in fields and "mapValue" in fields["reading"]:
-        result.reading = _parse_reading(fields["reading"]["mapValue"])
+        result.reading = parse_nested_object(
+            fields["reading"]["mapValue"], Reading)
 
     return result
 
@@ -127,12 +112,12 @@ def _document_to_device_channel(document: dict) -> DeviceChannel:
     try:
         # Handle complex objects
         if "alarmHigh" in fields and "mapValue" in fields["alarmHigh"]:
-            device_channel.alarm_high = _parse_alarm(
-                fields["alarmHigh"]["mapValue"])
+            device_channel.alarm_high = parse_nested_object(
+                fields["alarmHigh"]["mapValue"], Alarm)
 
         if "alarmLow" in fields and "mapValue" in fields["alarmLow"]:
-            device_channel.alarm_low = _parse_alarm(
-                fields["alarmLow"]["mapValue"])
+            device_channel.alarm_low = parse_nested_object(
+                fields["alarmLow"]["mapValue"], Alarm)
 
         if "minimum" in fields and "mapValue" in fields["minimum"]:
             device_channel.minimum = _parse_min_max_reading(
