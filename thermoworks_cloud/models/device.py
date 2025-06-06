@@ -53,10 +53,20 @@ class Device:  # pylint: disable=too-many-instance-attributes
         default=None, metadata={"firestore_type": "stringValue"})
     big_query_info: Optional[BigQueryInfo] = field(
         default=None, metadata={"api_name": "bigQuery"})
-    battery: Optional[int] = field(default=None, metadata={
-                                   "firestore_type": "integerValue", "converter": int})
-    wifi_strength: Optional[int] = field(default=None, metadata={
-                                         "api_name": "wifi_stength", "firestore_type": "integerValue", "converter": int})
+    battery: Optional[int] = field(
+        default=None,
+        metadata={
+            "firestore_type": "integerValue",
+            "converter": int
+        }
+    )
+    wifi_strength: Optional[int] = field(
+        default=None,
+        metadata={
+            "api_name": "wifi_stength",
+            "firestore_type": "integerValue", "converter": int
+        }
+    )
     recording_interval_in_seconds: Optional[int] = field(
         default=None, metadata={"firestore_type": "integerValue", "converter": int})
     transmit_interval_in_seconds: Optional[int] = field(
@@ -67,20 +77,27 @@ class Device:  # pylint: disable=too-many-instance-attributes
         default=None, metadata={"firestore_type": "booleanValue"})
     export_version: Optional[float] = field(
         default=None, metadata={"firestore_type": "doubleValue"})
-    last_seen: Optional[datetime] = field(default=None, metadata={
-                                          "firestore_type": "timestampValue", "converter": parse_datetime})
-    last_purged: Optional[datetime] = field(default=None, metadata={
-                                            "firestore_type": "timestampValue", "converter": parse_datetime})
-    last_archive: Optional[datetime] = field(default=None, metadata={
-                                             "firestore_type": "timestampValue", "converter": parse_datetime})
-    last_telemetry_saved: Optional[datetime] = field(default=None, metadata={
-                                                     "firestore_type": "timestampValue", "converter": parse_datetime})
-    last_wifi_connection: Optional[datetime] = field(default=None, metadata={
-                                                     "firestore_type": "timestampValue", "converter": parse_datetime})
-    last_bluetooth_connection: Optional[datetime] = field(default=None, metadata={
-                                                          "firestore_type": "timestampValue", "converter": parse_datetime})
-    session_start: Optional[datetime] = field(default=None, metadata={
-                                              "firestore_type": "timestampValue", "converter": parse_datetime})
+    last_seen: Optional[datetime] = field(
+        default=None,
+        metadata={"firestore_type": "timestampValue", "converter": parse_datetime})
+    last_purged: Optional[datetime] = field(
+        default=None,
+        metadata={"firestore_type": "timestampValue", "converter": parse_datetime})
+    last_archive: Optional[datetime] = field(
+        default=None,
+        metadata={"firestore_type": "timestampValue", "converter": parse_datetime})
+    last_telemetry_saved: Optional[datetime] = field(
+        default=None,
+        metadata={"firestore_type": "timestampValue", "converter": parse_datetime})
+    last_wifi_connection: Optional[datetime] = field(
+        default=None,
+        metadata={"firestore_type": "timestampValue", "converter": parse_datetime})
+    last_bluetooth_connection: Optional[datetime] = field(
+        default=None,
+        metadata={"firestore_type": "timestampValue", "converter": parse_datetime})
+    session_start: Optional[datetime] = field(
+        default=None,
+        metadata={"firestore_type": "timestampValue", "converter": parse_datetime})
     create_time: Optional[datetime] = None
     update_time: Optional[datetime] = None
 

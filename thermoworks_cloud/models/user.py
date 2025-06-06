@@ -99,8 +99,13 @@ class User:  # pylint: disable=too-many-instance-attributes
         default=None, metadata={"firestore_type": "doubleValue"})
     last_seen_in_app: Optional[None] = field(
         default=None, metadata={"firestore_type": "nullValue"})
-    last_login: Optional[datetime] = field(default=None, metadata={
-                                           "firestore_type": "timestampValue", "converter": parse_datetime})
+    last_login: Optional[datetime] = field(
+        default=None,
+        metadata={
+            "firestore_type": "timestampValue",
+            "converter": parse_datetime
+        }
+    )
     create_time: Optional[datetime] = None
     update_time: Optional[datetime] = None
 

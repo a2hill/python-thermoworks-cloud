@@ -38,8 +38,13 @@ class MinMaxReading:
     """A minimum or maximum reading on a device channel."""
 
     reading: Optional[Reading] = None
-    date_reading: Optional[datetime] = field(default=None, metadata={
-                                             "firestore_type": "timestampValue", "converter": parse_datetime})
+    date_reading: Optional[datetime] = field(
+        default=None,
+        metadata={
+            "firestore_type": "timestampValue",
+            "converter": parse_datetime
+        }
+    )
 
 
 @dataclass
@@ -49,8 +54,13 @@ class DeviceChannel:  # pylint: disable=too-many-instance-attributes
     All fields are optional as different device types may have different properties.
     """
 
-    last_telemetry_saved: Optional[datetime] = field(default=None, metadata={
-                                                     "firestore_type": "timestampValue", "converter": parse_datetime})
+    last_telemetry_saved: Optional[datetime] = field(
+        default=None,
+        metadata={
+            "firestore_type": "timestampValue",
+            "converter": parse_datetime
+        }
+    )
     """"The last time a telemetry packet was received from the device channel."""
     value: Optional[float] = field(default=None, metadata={
                                    "firestore_type": "doubleValue"})
@@ -65,8 +75,13 @@ class DeviceChannel:  # pylint: disable=too-many-instance-attributes
     """Customer provided 'name' for this device channel."""
     label: Optional[str] = field(default=None, metadata={
                                  "firestore_type": "stringValue"})
-    last_seen: Optional[datetime] = field(default=None, metadata={
-                                          "firestore_type": "timestampValue", "converter": parse_datetime})
+    last_seen: Optional[datetime] = field(
+        default=None,
+        metadata={
+            "firestore_type": "timestampValue",
+            "converter": parse_datetime
+        }
+    )
     alarm_high: Optional[Alarm] = field(
         default=None, metadata={"api_name": "alarmHigh"})
     alarm_low: Optional[Alarm] = field(
@@ -76,8 +91,13 @@ class DeviceChannel:  # pylint: disable=too-many-instance-attributes
                                   "firestore_type": "stringValue"})
     minimum: Optional[MinMaxReading] = None
     maximum: Optional[MinMaxReading] = None
-    show_avg_temp: Optional[bool] = field(default=None, metadata={
-                                          "api_name": "showAvgTemp", "firestore_type": "booleanValue"})
+    show_avg_temp: Optional[bool] = field(
+        default=None,
+        metadata={
+            "api_name": "showAvgTemp",
+            "firestore_type": "booleanValue"
+        }
+    )
 
     # Dictionary to store any additional properties not explicitly defined
     additional_properties: Optional[Dict] = None
