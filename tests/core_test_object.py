@@ -1,6 +1,6 @@
 """Provides capabilities for mocking Thermoworks Cloud related API calls."""
 
-from typing import cast
+from typing import cast, Dict, Any
 from pytest_httpserver import HTTPServer, RequestHandler
 
 from tests.test_data import (
@@ -49,10 +49,23 @@ class CoreTestObject:
     ) -> RequestHandler:
         """Create a request handler for a GET request to the `get_device_channel` API.
         """
-        url = f"{
-            FIREBASE_APPLICATION_BASE_PATH}/devices/{device_serial}/channels/{channel}"
+        url = f"{FIREBASE_APPLICATION_BASE_PATH}/devices/{device_serial}/channels/{channel}"
         headers = {"authorization": f"Bearer {access_token}"}
         query_string = {"key": API_KEY}
         return self.httpserver.expect_request(
             url, headers=headers, query_string=query_string
+        )
+
+    def expect_run_query(
+        self, access_token: str, query_body: Dict[str, Any]
+    ) -> RequestHandler:
+        """Create a request handler for a POST request to the `runQuery` API."""
+        url = f"{FIREBASE_APPLICATION_BASE_PATH}:runQuery"
+        headers = {
+            "authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+        query_string = {"key": API_KEY}
+        return self.httpserver.expect_request(
+            url, method="POST", headers=headers, query_string=query_string, json=query_body
         )

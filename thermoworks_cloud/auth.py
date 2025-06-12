@@ -18,7 +18,7 @@ class Auth(Protocol):
         """The id of the logged in user"""
         ...  # pylint: disable=unnecessary-ellipsis
 
-    async def request(self, method, url) -> ClientResponse:
+    async def request(self, method, url,  additional_headers=None, json=None) -> ClientResponse:
         """Make an authenticated request."""
         ...  # pylint: disable=unnecessary-ellipsis
 
@@ -37,16 +37,22 @@ class _AuthBase(ABC, Auth):
         """Return a valid access token."""
         ...  # pylint: disable=unnecessary-ellipsis
 
-    async def request(self, method, url) -> ClientResponse:
+    async def request(self, method, url, additional_headers=None, json=None) -> ClientResponse:
 
         access_token = await self._async_get_access_token()
         headers = {"authorization": f"Bearer {access_token}"}
+
+        # If headers are provided in kwargs, merge them with our auth headers
+        if additional_headers:
+            headers.update(additional_headers)
+
         url = f"{self.host}/{url}?key={self.api_key}"
 
         return await self.websession.request(
             method,
             url,
             headers=headers,
+            json=json
         )
 
 
@@ -310,7 +316,7 @@ class AuthFactory:  # pylint: disable=too-few-public-methods
         web_config = await self._get_config()
         project_id = web_config["projectId"]
         url_root = f"{
-            self._FIRESTORE_HOST}/v1/projects/{project_id}/databases/(default)/documents"
+            self._FIRESTORE_HOST}/v1/projects/{project_id}/databases/(default)"
 
         token_manager = _TokenManager(self._websession, self._API_KEY)
         await token_manager.login(email, password)

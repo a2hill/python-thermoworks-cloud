@@ -279,5 +279,5 @@ class TestAuth:
 
         # assert
         auth = await auth_factory.build_auth(TEST_EMAIL_ADDRESS, TEST_PASSWORD)
-        respose = await auth.request("GET", "test")
+        respose = await auth.request("GET", "documents/test")
         assert await respose.json() == {"test": "test"}

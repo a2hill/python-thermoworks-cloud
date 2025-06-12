@@ -55,22 +55,20 @@ async def __main__():
         auth = await AuthFactory(session).build_auth(email, password)
         thermoworks = ThermoworksCloud(auth)
         user = await thermoworks.get_user()
+        if not user.account_id:
+            raise RuntimeError("No account ID found for user")
 
-        # To store the devices we find
-        devices: list[Device] = []
+        devices = await thermoworks.get_devices(user.account_id)
         device_channels_by_device: dict[str, list[DeviceChannel]] = {}
 
-        # Get the device serial numbers from the user document
-        device_serials = [
-            device_order_item.device_id
-            for device_order_item in user.device_order.get(user.account_id, [])
-        ]
-
         # Iterate over the device serials and fetch the device document for each
-        for device_serial in device_serials:
+        for device in devices:
+            if not device.serial:
+                print(
+                    f"Cannot get channels for device {device.device_id}, device has no serial")
+                continue
+
             try:
-                device = await thermoworks.get_device(device_serial)
-                devices.append(device)
                 device_channels = []
 
                 # According to reverse engineering, channels seem to be 1 indexed
@@ -78,7 +76,7 @@ async def __main__():
                     try:
                         device_channels.append(
                             await thermoworks.get_device_channel(
-                                device_serial=device_serial, channel=str(
+                                device_serial=device.serial, channel=str(
                                     channel)
                             )
                         )
@@ -87,12 +85,12 @@ async def __main__():
                         break
                     except Exception as e:
                         print(
-                            f"Error getting channel {channel} for device {device_serial}: {e}")
+                            f"Error getting channel {channel} for device {device.serial}: {e}")
                         continue
 
-                device_channels_by_device[device_serial] = device_channels
+                device_channels_by_device[device.serial] = device_channels
             except Exception as e:
-                print(f"Error getting device {device_serial}: {e}")
+                print(f"Error getting device {device.serial}: {e}")
                 continue
 
         # Print information about each device
@@ -113,6 +111,7 @@ async def __main__():
 
         # Print detailed information for each device
         for device in devices:
+            assert device.serial is not None
             device_channels = device_channels_by_device.get(device.serial, [])
             print_device_info(device, device_channels)
 
@@ -125,7 +124,7 @@ async def __main__():
             }
         }
 
-        with open("thermoworks_devices_data.json", "w") as f:
+        with open("thermoworks_devices_data.json", "w", encoding="utf-8") as f:
             json.dump(output_data, f, indent=2, default=str)
 
         print("Data saved to thermoworks_devices_data.json for further analysis")

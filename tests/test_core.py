@@ -12,9 +12,11 @@ from tests.test_data import (
     TEST_EMAIL_ADDRESS,
     TEST_ID_TOKEN,
     TEST_USER_ID,
+    TEST_ACCOUNT_ID,
     USER_RESPONSE,
     GET_DEVICE_RESPONSE,
     GET_DEVICE_CHANNEL_RESPONSE,
+    GET_DEVICES_RESPONSE,
 )
 from thermoworks_cloud.auth import Auth
 from thermoworks_cloud import ThermoworksCloud
@@ -593,8 +595,8 @@ class TestCore:
             device_serial=test_device_serial,
             channel=test_device_channel,
         ).respond_with_data(status=500, response_data="Internal error")
-        with patch("aiohttp.ClientResponse.text", new_callable=AsyncMock) as get_text:
-            get_text.side_effect = RuntimeError("Simulated error")
+        with patch("aiohttp.ClientResponse.json", new_callable=AsyncMock) as get_json:
+            get_json.side_effect = RuntimeError("Simulated error")
             thermoworks_cloud = ThermoworksCloud(auth)
 
             # Act
@@ -602,3 +604,189 @@ class TestCore:
                 await thermoworks_cloud.get_device_channel(
                     test_device_serial, test_device_channel
                 )
+
+    # pylint: disable=duplicate-code
+    async def test_get_devices(self, auth: Auth, core_test_object: CoreTestObject):
+        """Test the get_devices method of ThermoworksCloud.
+
+        This test checks if the get_devices method returns the expected list of Device objects
+        when a valid account_id is provided.
+        """
+        # Setup
+        expected_query = {
+            "structuredQuery": {
+                "from": [{"collectionId": "devices"}],
+                "where": {
+                    "fieldFilter": {
+                        "field": {"fieldPath": "accountId"},
+                        "op": "EQUAL",
+                        "value": {"stringValue": TEST_ACCOUNT_ID}
+                    }
+                },
+                "orderBy": [{"field": {"fieldPath": "__name__"}, "direction": "ASCENDING"}]
+            }
+        }
+
+        core_test_object.expect_run_query(
+            access_token=TEST_ID_TOKEN, query_body=expected_query
+        ).respond_with_json(GET_DEVICES_RESPONSE)
+
+        thermoworks_cloud = ThermoworksCloud(auth)
+
+        # Act
+        devices = await thermoworks_cloud.get_devices(TEST_ACCOUNT_ID)
+
+        # Assert
+        assert devices is not None
+        assert len(devices) == 2
+
+        # Check first device (full device)
+        device1 = devices[0]
+        assert device1.device_id == TEST_DEVICE_ID_0
+        assert device1.serial == TEST_DEVICE_ID_0
+        assert device1.type == "datalogger"
+        assert device1.label == "NODE"
+        assert device1.device_name == "node"
+        assert device1.account_id == TEST_ACCOUNT_ID
+        assert device1.battery == 100
+        assert device1.battery_state == "discharging"
+        assert device1.firmware == "1.0.26-26"
+        assert device1.color == "3f90ca"
+        assert device1.wifi_strength == -72
+        assert device1.recording_interval_in_seconds == 600
+        assert device1.transmit_interval_in_seconds == 7200
+        assert device1.iot_device_id == "T123456"
+        assert device1.device_display_units == "F"
+        assert device1.big_query_info is not None
+        assert device1.big_query_info.table_id == TEST_DEVICE_ID_0
+        assert device1.big_query_info.dataset_id == "test-dataset-id"
+
+        # Check second device (minimal device)
+        device2 = devices[1]
+        assert device2.device_id == TEST_DEVICE_ID_1
+        assert device2.serial == TEST_DEVICE_ID_1
+        assert device2.type == "signals"
+        assert device2.label == "SIGNALS"
+        assert device2.device_name == "signals"
+        assert device2.account_id == TEST_ACCOUNT_ID
+        assert device2.status == "NORMAL"
+
+        # Verify that optional fields are handled correctly
+        assert device1.big_query_info is not None
+        assert device2.big_query_info is None
+
+    # pylint: disable=duplicate-code
+    async def test_get_devices_4xx_throws(
+        self, auth: Auth, core_test_object: CoreTestObject
+    ):
+        """Test the get_devices method of ThermoworksCloud when a 4xx error is returned."""
+        # Setup
+        expected_query = {
+            "structuredQuery": {
+                "from": [{"collectionId": "devices"}],
+                "where": {
+                    "fieldFilter": {
+                        "field": {"fieldPath": "accountId"},
+                        "op": "EQUAL",
+                        "value": {"stringValue": TEST_ACCOUNT_ID}
+                    }
+                },
+                "orderBy": [{"field": {"fieldPath": "__name__"}, "direction": "ASCENDING"}]
+            }
+        }
+
+        core_test_object.expect_run_query(
+            access_token=TEST_ID_TOKEN, query_body=expected_query
+        ).respond_with_data(status=400, response_data=b"Bad Request")
+
+        thermoworks_cloud = ThermoworksCloud(auth)
+
+        # Act
+        with pytest.raises(RuntimeError):
+            await thermoworks_cloud.get_devices(TEST_ACCOUNT_ID)
+
+    async def test_get_devices_empty_response(
+        self, auth: Auth, core_test_object: CoreTestObject
+    ):
+        """Test the get_devices method of ThermoworksCloud when an empty response is returned."""
+        # Setup
+        expected_query = {
+            "structuredQuery": {
+                "from": [{"collectionId": "devices"}],
+                "where": {
+                    "fieldFilter": {
+                        "field": {"fieldPath": "accountId"},
+                        "op": "EQUAL",
+                        "value": {"stringValue": TEST_ACCOUNT_ID}
+                    }
+                },
+                "orderBy": [{"field": {"fieldPath": "__name__"}, "direction": "ASCENDING"}]
+            }
+        }
+
+        core_test_object.expect_run_query(
+            access_token=TEST_ID_TOKEN, query_body=expected_query
+        ).respond_with_json([])
+
+        thermoworks_cloud = ThermoworksCloud(auth)
+
+        # Act
+        devices = await thermoworks_cloud.get_devices(TEST_ACCOUNT_ID)
+
+        # Assert
+        assert devices is not None
+        assert len(devices) == 0
+
+    async def test_get_devices_read_error_response_throws(
+        self, auth: Auth, core_test_object: CoreTestObject
+    ):
+        """Test the get_devices method of ThermoworksCloud when an error occurs reading 
+        the response.
+        """
+        # Setup
+        expected_query = {
+            "structuredQuery": {
+                "from": [{"collectionId": "devices"}],
+                "where": {
+                    "fieldFilter": {
+                        "field": {"fieldPath": "accountId"},
+                        "op": "EQUAL",
+                        "value": {"stringValue": TEST_ACCOUNT_ID}
+                    }
+                },
+                "orderBy": [{"field": {"fieldPath": "__name__"}, "direction": "ASCENDING"}]
+            }
+        }
+
+        core_test_object.expect_run_query(
+            access_token=TEST_ID_TOKEN, query_body=expected_query
+        ).respond_with_data(status=500, response_data="Internal error")
+
+        with patch("aiohttp.ClientResponse.text", new_callable=AsyncMock) as get_text:
+            get_text.side_effect = RuntimeError("Simulated error")
+            thermoworks_cloud = ThermoworksCloud(auth)
+
+            # Act
+            with pytest.raises(RuntimeError):
+                await thermoworks_cloud.get_devices(TEST_ACCOUNT_ID)
+
+    async def test_get_devices_exception_throws(self, auth: Auth):
+        """Test the get_devices method of ThermoworksCloud when an exception is thrown 
+        during the request.
+
+        This test checks if the get_devices method raises an exception when an exception is thrown
+        during an http request.
+        """
+        # Setup
+        with patch(
+            "aiohttp.ClientSession.request", new_callable=AsyncMock
+        ) as mock_request:
+            mock_request.side_effect = RuntimeError("Simulated error")
+            thermoworks_cloud = ThermoworksCloud(auth)
+
+            # Act
+            try:
+                await thermoworks_cloud.get_devices(TEST_ACCOUNT_ID)
+                assert False, "Should have thrown an exception"
+            except RuntimeError as e:
+                assert e is not None, "Errors should not be swallowed"

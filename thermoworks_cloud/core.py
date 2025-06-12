@@ -1,6 +1,7 @@
 """Accessor for the Thermoworks Cloud API."""
 
 import logging
+from typing import List
 
 from thermoworks_cloud.utils import format_client_response
 
@@ -40,7 +41,7 @@ class ThermoworksCloud:
     async def get_user(self) -> User:
         """Fetch information for the authenticated user."""
 
-        response = await self._auth.request("get", f"users/{self._auth.user_id}")
+        response = await self._auth.request("get", f"documents/users/{self._auth.user_id}")
         if response.ok:
             user_document = await response.json()
             return document_to_user(user_document)
@@ -58,7 +59,7 @@ class ThermoworksCloud:
     async def get_device(self, device_serial: str) -> Device:
         """Fetch a device by serial number."""
 
-        response = await self._auth.request("get", f"devices/{device_serial}")
+        response = await self._auth.request("get", f"documents/devices/{device_serial}")
         if response.ok:
             device_document = await response.json()
             return _document_to_device(device_document)
@@ -80,7 +81,7 @@ class ThermoworksCloud:
         """Fetch channel information for a device."""
 
         response = await self._auth.request(
-            "get", f"devices/{device_serial}/channels/{channel}"
+            "get", f"documents/devices/{device_serial}/channels/{channel}"
         )
         if response.ok:
             device_channel_document = await response.json()
@@ -99,3 +100,47 @@ class ThermoworksCloud:
 
         raise RuntimeError(
             f"Failed to get device channel: {error_response}")
+
+    async def get_devices(self, account_id: str) -> List[Device]:
+        """Fetch devices for the authenticated user using Firestore query.
+
+        It queries the Firestore 'devices' collection directly using the user's accountId.
+        """
+
+        # Build the Firestore query
+        query_body = {
+            "structuredQuery": {
+                "from": [{"collectionId": "devices"}],
+                "where": {
+                    "fieldFilter": {
+                        "field": {"fieldPath": "accountId"},
+                        "op": "EQUAL",
+                        "value": {"stringValue": account_id}
+                    }
+                },
+                "orderBy": [{"field": {"fieldPath": "__name__"}, "direction": "ASCENDING"}]
+            }
+        }
+
+        # Execute the query against Firestore REST API
+        headers = {"Content-Type": "application/json"}
+        response = await self._auth.request("post", "documents:runQuery",
+                                            additional_headers=headers, json=query_body)
+
+        if not response.ok:
+            try:
+                error_response = await format_client_response(response)
+            except RuntimeError:
+                error_response = "Could not read response body."
+            raise RuntimeError(f"Failed to query devices: {error_response}")
+
+        # Process the response
+        result = await response.json()
+        devices = []
+
+        for item in result:
+            if "document" in item:
+                device = _document_to_device(item["document"])
+                devices.append(device)
+
+        return devices

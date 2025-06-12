@@ -18,6 +18,7 @@ TEST_USER_ID = "test_user_id"
 TEST_ID_TOKEN = "test_id_token"
 TEST_REFRESHED_ID_TOKEN = "test-refreshed-id-token"
 TEST_REFRESH_TOKEN = "test_refresh_token"
+TEST_ACCOUNT_ID = "test-account-id"
 
 # Root path used for application specific requests
 FIREBASE_APPLICATION_BASE_PATH = (
@@ -180,7 +181,7 @@ USER_RESPONSE = json.loads(
             "integerValue": "1234567"
           },
           "smtp-id": {
-            "stringValue": "\u003cmail@server.com\u003e"
+            "stringValue": "\\u003cmail@server.com\\u003e"
           },
           "type": {
             "stringValue": "blocked"
@@ -471,3 +472,70 @@ GET_DEVICE_CHANNEL_RESPONSE = json.loads(
   "updateTime": "2021-01-01T00:00:00.000Z"
 }"""
 )
+
+# Response for get_devices query - using sanitized real-world format
+GET_DEVICES_RESPONSE = [
+    {
+        "document": {
+            "name": f"projects/test-project-name/databases/(default)/documents/devices/{TEST_DEVICE_ID_0}",  # pylint: disable=line-too-long
+            "fields": {
+                "label": {"stringValue": "NODE"},
+                "device": {"stringValue": "node"},
+                "deviceId": {"stringValue": TEST_DEVICE_ID_0},
+                "lastPurged": {"timestampValue": "2023-04-06T00:36:54.483Z"},
+                "exportVersion": {"doubleValue": 0.5},
+                "serial": {"stringValue": TEST_DEVICE_ID_0},
+                "batteryState": {"stringValue": "discharging"},
+                "accountId": {"stringValue": TEST_ACCOUNT_ID},
+                "sessionStart": {"timestampValue": "2023-09-23T16:36:09.435Z"},
+                "pendingLoad": {"booleanValue": False},
+                "firmware": {"stringValue": "1.0.26-26"},
+                "bigQuery": {
+                    "mapValue": {
+                        "fields": {
+                            "tableId": {"stringValue": TEST_DEVICE_ID_0},
+                            "datasetId": {"stringValue": "test-dataset-id"}
+                        }
+                    }
+                },
+                "deviceDisplayUnits": {"stringValue": "F"},
+                "thumbnail": {"stringValue": "node_bl.png"},
+                "color": {"stringValue": "3f90ca"},
+                "recordingIntervalInSeconds": {"integerValue": "600"},
+                "iotDeviceId": {"stringValue": "T123456"},
+                "transmitIntervalInSeconds": {"integerValue": "7200"},
+                "battery": {"integerValue": "100"},
+                "batteryAlertSent": {"booleanValue": False},
+                "status": {"stringValue": "NORMAL"},
+                "lastBluetoothConnection": {"timestampValue": "2021-01-01T00:00:00.000Z"},
+                "type": {"stringValue": "datalogger"},
+                "lastArchive": {"timestampValue": "2021-01-01T00:00:00.000Z"},
+                "wifi_stength": {"integerValue": "-72"},
+                "lastTelemetrySaved": {"timestampValue": "2021-01-01T00:00:00.000Z"},
+                "lastSeen": {"timestampValue": "2021-01-01T00:00:00.000Z"},
+                "lastWifiConnection": {"timestampValue": "2021-01-01T00:00:00.000Z"}
+            },
+            "createTime": "2019-01-01T00:00:00.000Z",
+            "updateTime": "2021-01-01T00:00:00.000Z"
+        },
+        "readTime": "2023-01-01T00:00:00.000000000Z"
+    },
+    {
+        "document": {
+            "name": f"projects/test-project-name/databases/(default)/documents/devices/{TEST_DEVICE_ID_1}",  # pylint: disable=line-too-long
+            "fields": {
+                "deviceId": {"stringValue": TEST_DEVICE_ID_1},
+                "serial": {"stringValue": TEST_DEVICE_ID_1},
+                "label": {"stringValue": "SIGNALS"},
+                "type": {"stringValue": "signals"},
+                "accountId": {"stringValue": TEST_ACCOUNT_ID},
+                "device": {"stringValue": "signals"},
+                "status": {"stringValue": "NORMAL"},
+                "lastSeen": {"timestampValue": "2021-01-01T00:00:00.000Z"}
+            },
+            "createTime": "2019-01-01T00:00:00.000Z",
+            "updateTime": "2021-01-01T00:00:00.000Z"
+        },
+        "readTime": "2023-01-01T00:00:00.000000000Z"
+    }
+]
