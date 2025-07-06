@@ -12,9 +12,16 @@ Pull data from your ThermoWorks Cloud connected thermometers
 
 This is an unofficial library written using the observed behavior of the ThermoWorks Cloud web client (https://cloud.thermoworks.com/home)
 
+The primary purpose of this library is to make ThermoWorks data available for usage in the acompanying [Home Assistant ThermoWorks Cloud Ingegration](https://github.com/a2hill/ha-thermoworks-cloud) 
+
 ### Supported Devices
 This library has been tested with the following devices:
 * [ThermoWorks Node Wi-Fi sensor](https://www.thermoworks.com/node/)
+* ThermaData
+* Smoke
+* RXF
+
+More more information on supported devices see the discussion thread: [ThermoWorks Cloud Home Assistant Integration - Device Interoperability](https://github.com/a2hill/ha-thermoworks-cloud/discussions/6)
 
 
 ## Installation
