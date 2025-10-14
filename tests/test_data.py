@@ -473,6 +473,125 @@ GET_DEVICE_CHANNEL_RESPONSE = json.loads(
 }"""
 )
 
+GET_DEVICE_CHANNEL_RESPONSE_INT = json.loads(
+    """
+{
+  "name": "projects/test-project-name/databases/(default)/documents/devices/test-device/channels/1",
+  "fields": {
+    "lastTelemetrySaved": {
+      "timestampValue": "2021-01-01T00:00:00.000Z"
+    },
+    "value": {
+      "integerValue": -6
+    },
+    "color": {
+      "stringValue": "none"
+    },
+    "minimum": {
+      "mapValue": {
+        "fields": {
+          "dateReading": {
+            "timestampValue": "2021-01-01T00:00:00.000Z"
+          },
+          "reading": {
+            "mapValue": {
+              "fields": {
+                "value": {
+                  "doubleValue": -9.1000003814697266
+                },
+                "units": {
+                  "stringValue": "F"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "units": {
+      "stringValue": "F"
+    },
+    "status": {
+      "stringValue": "NORMAL"
+    },
+    "type": {
+      "stringValue": "test-device-channel-type"
+    },
+    "label": {
+      "stringValue": "test-channel-label"
+    },
+    "lastSeen": {
+      "timestampValue": "2021-01-01T00:00:00.000Z"
+    },
+    "alarmHigh": {
+      "mapValue": {
+        "fields": {
+          "enabled": {
+            "booleanValue": true
+          },
+          "units": {
+            "stringValue": "F"
+          },
+          "alarming": {
+            "booleanValue": false
+          },
+          "value": {
+            "integerValue": "30"
+          }
+        }
+      }
+    },
+    "number": {
+      "stringValue": "test-channel-number"
+    },
+    "maximum": {
+      "mapValue": {
+        "fields": {
+          "reading": {
+            "mapValue": {
+              "fields": {
+                "value": {
+                  "doubleValue": 69.5
+                },
+                "units": {
+                  "stringValue": "F"
+                }
+              }
+            }
+          },
+          "dateReading": {
+            "timestampValue": "2021-01-01T00:00:00.000Z"
+          }
+        }
+      }
+    },
+    "alarmLow": {
+      "mapValue": {
+        "fields": {
+          "enabled": {
+            "booleanValue": true
+          },
+          "units": {
+            "stringValue": "F"
+          },
+          "alarming": {
+            "booleanValue": false
+          },
+          "value": {
+            "integerValue": "-12"
+          }
+        }
+      }
+    },
+    "showAvgTemp": {
+      "booleanValue": true
+    }
+  },
+  "createTime": "2019-01-01T00:00:00.000Z",
+  "updateTime": "2021-01-01T00:00:00.000Z"
+}"""
+)
+
 # Response for get_devices query - using sanitized real-world format
 GET_DEVICES_RESPONSE = [
     {

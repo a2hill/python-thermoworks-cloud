@@ -145,10 +145,18 @@ def map_firestore_fields(firestore_fields: Dict, dataclass_type: Type) -> Any:
             firestore_type = field_info.metadata['firestore_type']
             converter = field_info.metadata.get('converter')
 
-            # Set the field value
-            value = get_field_value(
-                firestore_fields, api_name, firestore_type, converter)
-            setattr(instance, field_info.name, value)
+            if isinstance(firestore_type, list):
+                for type_item in firestore_type:
+                    value = get_field_value(
+                        firestore_fields, api_name, type_item, converter)
+                    if value is not None:
+                        setattr(instance, field_info.name, value)
+                        break
+            else:
+                # Set the field value
+                value = get_field_value(
+                    firestore_fields, api_name, firestore_type, converter)
+                setattr(instance, field_info.name, value)
 
         # Handle map fields with map_of metadata
         elif 'map_of' in field_info.metadata:

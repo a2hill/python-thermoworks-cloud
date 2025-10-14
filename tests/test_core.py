@@ -5,6 +5,7 @@ from typing import Any
 from unittest.mock import AsyncMock, patch
 import pytest
 
+from test_data import GET_DEVICE_CHANNEL_RESPONSE_INT
 from tests.core_test_object import CoreTestObject
 from tests.test_data import (
     TEST_DEVICE_ID_0,
@@ -500,6 +501,30 @@ class TestCore:
         assert channel.show_avg_temp == get_field_value(
             GET_DEVICE_CHANNEL_RESPONSE, "showAvgTemp"
         )
+    async def test_get_device_channel_int_value(
+            self, auth: Auth, core_test_object: CoreTestObject
+    ):
+        """This test checks the value response when the type goes from a float, to an int
+        """
+        # Setup
+        test_device_serial = "test_device_serial"
+        test_device_channel = "test_device_channel"
+        core_test_object.expect_get_device_channel(
+            access_token=TEST_ID_TOKEN,
+            device_serial=test_device_serial,
+            channel=test_device_channel,
+        ).respond_with_json(GET_DEVICE_CHANNEL_RESPONSE_INT)
+        thermoworks_cloud = ThermoworksCloud(auth)
+
+        # Act
+        channel = await thermoworks_cloud.get_device_channel(
+            test_device_serial, test_device_channel
+        )
+        # Assert
+        assert channel is not None
+        assert channel.value == get_field_value(
+            GET_DEVICE_CHANNEL_RESPONSE_INT, "value")
+
 
     async def test_get_device_channel_4xx_throws(
         self, auth: Auth, core_test_object: CoreTestObject
