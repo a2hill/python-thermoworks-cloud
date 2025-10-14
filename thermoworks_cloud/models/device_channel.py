@@ -63,7 +63,7 @@ class DeviceChannel:  # pylint: disable=too-many-instance-attributes
     )
     """"The last time a telemetry packet was received from the device channel."""
     value: Optional[float] = field(default=None, metadata={
-                                   "firestore_type": "doubleValue"})
+                                   "firestore_type": ["doubleValue","integerValue"]})
     """"The temperature units as a string like "F" """
     units: Optional[str] = field(default=None, metadata={
                                  "firestore_type": "stringValue"})
