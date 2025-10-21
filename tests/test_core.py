@@ -5,7 +5,7 @@ from typing import Any
 from unittest.mock import AsyncMock, patch
 import pytest
 
-from test_data import GET_DEVICE_CHANNEL_RESPONSE_INT
+from tests.test_data import GET_DEVICE_CHANNEL_RESPONSE_INT
 from tests.core_test_object import CoreTestObject
 from tests.test_data import (
     TEST_DEVICE_ID_0,
