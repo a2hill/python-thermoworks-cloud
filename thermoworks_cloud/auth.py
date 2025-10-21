@@ -286,8 +286,7 @@ class AuthFactory:  # pylint: disable=too-few-public-methods
     async def _get_config(self) -> _WebConfigResponse:
         """Get the Firestore project information for this application."""
 
-        url = f"{
-            self._FIREBASE_HOST}/v1alpha/projects/-/apps/{self._APP_ID}/webConfig"
+        url = f"{self._FIREBASE_HOST}/v1alpha/projects/-/apps/{self._APP_ID}/webConfig"
         headers = {
             "accept": "application/json",
             "x-goog-api-key": self._API_KEY,
@@ -315,8 +314,7 @@ class AuthFactory:  # pylint: disable=too-few-public-methods
 
         web_config = await self._get_config()
         project_id = web_config["projectId"]
-        url_root = f"{
-            self._FIRESTORE_HOST}/v1/projects/{project_id}/databases/(default)"
+        url_root = f"{self._FIRESTORE_HOST}/v1/projects/{project_id}/databases/(default)"
 
         token_manager = _TokenManager(self._websession, self._API_KEY)
         await token_manager.login(email, password)

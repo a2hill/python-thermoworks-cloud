@@ -65,8 +65,7 @@ class ThermoworksCloud:
             return _document_to_device(device_document)
 
         if response.status == 404:
-            raise ResourceNotFoundError(f"Device with serial '{
-                                        device_serial}'not found")
+            raise ResourceNotFoundError(f"Device with serial '{device_serial}' not found")
 
         try:
             error_response = await format_client_response(response)
@@ -89,8 +88,7 @@ class ThermoworksCloud:
 
         if response.status == 404:
             raise ResourceNotFoundError(
-                f"Device channel with serial '{device_serial}' and channel '{
-                    channel}' not found"
+                f"Device channel with serial '{device_serial}' and channel '{channel}' not found"
             )
 
         try:

@@ -79,7 +79,7 @@ def assert_map_values(response_dict: dict, obj_dict: dict, field_path: str):
         assert obj_dict[key] == get_value(value)
 
 
-class TestCore:
+class TestCore:  # pylint: disable=too-many-public-methods
     """Test class for ThermoworksCloud core functionality."""
 
     async def test_get_user(self, auth: Auth, core_test_object: CoreTestObject):
