@@ -473,6 +473,122 @@ GET_DEVICE_CHANNEL_RESPONSE = json.loads(
 }"""
 )
 
+GET_DEVICE_CHANNEL_RESPONSE_HUMIDITY = json.loads(
+    """
+{
+  "name": "projects/test-project-name/databases/(default)/documents/devices/test-device/channels/1",
+  "fields": {
+    "lastTelemetrySaved": {
+      "timestampValue": "2025-06-05T06:56:46.000Z"
+    },
+    "value": {
+      "doubleValue": 91.26999999999998
+    },
+    "units": {
+      "stringValue": "H"
+    },
+    "status": {
+      "stringValue": "NORMAL"
+    },
+    "type": {
+      "stringValue": "HumidityHumidity"
+    },
+    "label": {
+      "stringValue": "Humidity"
+    },
+    "lastSeen": {
+      "timestampValue": "2025-06-05T07:12:14.827Z"
+    },
+    "alarmHigh": {
+      "mapValue": {
+        "fields": {
+          "enabled": {
+            "booleanValue": true
+          },
+          "alarming": {
+            "booleanValue": false
+          },
+          "value": {
+            "integerValue": "100"
+          },
+          "units": {
+            "stringValue": "F"
+          }
+        }
+      }
+    },
+    "alarmLow": {
+      "mapValue": {
+        "fields": {
+          "enabled": {
+            "booleanValue": true
+          },
+          "alarming": {
+            "booleanValue": false
+          },
+          "value": {
+            "integerValue": "0"
+          },
+          "units": {
+            "stringValue": "F"
+          }
+        }
+      }
+    },
+    "number": {
+      "stringValue": "1"
+    },
+    "minimum": {
+      "mapValue": {
+        "fields": {
+          "reading": {
+            "mapValue": {
+              "fields": {
+                "value": {
+                  "doubleValue": 18.839999999999975
+                },
+                "units": {
+                  "stringValue": "H"
+                }
+              }
+            }
+          },
+          "dateReading": {
+            "timestampValue": "2025-06-01T11:32:46.000Z"
+          }
+        }
+      }
+    },
+    "maximum": {
+      "mapValue": {
+        "fields": {
+          "reading": {
+            "mapValue": {
+              "fields": {
+                "value": {
+                  "doubleValue": 91.26999999999998
+                },
+                "units": {
+                  "stringValue": "H"
+                }
+              }
+            }
+          },
+          "dateReading": {
+            "timestampValue": "2025-06-05T06:56:46.000Z"
+          }
+        }
+      }
+    },
+    "showAvgTemp": {
+      "booleanValue": true
+    }
+  },
+  "createTime": "2019-01-01T00:00:00.000Z",
+  "updateTime": "2021-01-01T00:00:00.000Z"
+}"""
+)
+
 GET_DEVICE_CHANNEL_RESPONSE_INT = json.loads(
     """
 {

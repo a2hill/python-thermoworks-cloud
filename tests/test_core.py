@@ -5,7 +5,7 @@ from typing import Any
 from unittest.mock import AsyncMock, patch
 import pytest
 
-from tests.test_data import GET_DEVICE_CHANNEL_RESPONSE_INT
+from tests.test_data import GET_DEVICE_CHANNEL_RESPONSE_INT, GET_DEVICE_CHANNEL_RESPONSE_HUMIDITY
 from tests.core_test_object import CoreTestObject
 from tests.test_data import (
     TEST_DEVICE_ID_0,
@@ -524,6 +524,38 @@ class TestCore:  # pylint: disable=too-many-public-methods
         assert channel is not None
         assert channel.value == get_field_value(
             GET_DEVICE_CHANNEL_RESPONSE_INT, "value")
+
+    async def test_get_device_channel_humidity(
+            self, auth: Auth, core_test_object: CoreTestObject
+    ):
+        """Test parsing humidity data from device channel."""
+        # Setup
+        test_device_serial = "test_device_serial"
+        test_device_channel = "1"
+        core_test_object.expect_get_device_channel(
+            access_token=TEST_ID_TOKEN,
+            device_serial=test_device_serial,
+            channel=test_device_channel,
+        ).respond_with_json(GET_DEVICE_CHANNEL_RESPONSE_HUMIDITY)
+        thermoworks_cloud = ThermoworksCloud(auth)
+
+        # Act
+        channel = await thermoworks_cloud.get_device_channel(
+            test_device_serial, test_device_channel
+        )
+
+        # Assert
+        assert channel is not None
+        assert channel.value == 91.26999999999998
+        assert channel.units == "H"
+        assert channel.type == "HumidityHumidity"
+        assert channel.label == "Humidity"
+        assert channel.minimum is not None
+        assert channel.minimum.reading.value == 18.839999999999975
+        assert channel.minimum.reading.units == "H"
+        assert channel.maximum is not None
+        assert channel.maximum.reading.value == 91.26999999999998
+        assert channel.maximum.reading.units == "H"
 
 
     async def test_get_device_channel_4xx_throws(

@@ -9,11 +9,11 @@ from thermoworks_cloud.utils import parse_datetime, map_firestore_fields, parse_
 
 @dataclass
 class Reading:
-    """A temperature reading from a device channel."""
+    """A reading from a device channel (temperature or humidity)."""
 
     value: Optional[float] = field(default=None, metadata={
                                    "firestore_type": "doubleValue"})
-    """"The temperature units as a string like "F" """
+    """"The units as a string like "F", "C", or "H" (for humidity)"""
     units: Optional[str] = field(default=None, metadata={
                                  "firestore_type": "stringValue"})
 
@@ -28,7 +28,7 @@ class Alarm:
         default=None, metadata={"firestore_type": "booleanValue"})
     value: Optional[int] = field(default=None, metadata={
                                  "firestore_type": "integerValue", "converter": int})
-    """"The temperature units as a string like "F" """
+    """"The units as a string like "F", "C", or "H" (for humidity)"""
     units: Optional[str] = field(default=None, metadata={
                                  "firestore_type": "stringValue"})
 
@@ -64,7 +64,7 @@ class DeviceChannel:  # pylint: disable=too-many-instance-attributes
     """"The last time a telemetry packet was received from the device channel."""
     value: Optional[float] = field(default=None, metadata={
                                    "firestore_type": ["doubleValue","integerValue"]})
-    """"The temperature units as a string like "F" """
+    """"The units as a string like "F", "C", or "H" (for humidity)"""
     units: Optional[str] = field(default=None, metadata={
                                  "firestore_type": "stringValue"})
     """"The only observed value for this field is "NORMAL"."""
