@@ -145,10 +145,12 @@ class _TokenManager:
 
     _user_credentials: _UserCredentials
 
-    def __init__(self, websession: ClientSession, api_key: str) -> None:
+    def __init__(self, websession: ClientSession, api_key: str,
+                 referer: str = "https://cloud.thermoworks.com/") -> None:
         """Initialize token manager."""
         self._websession = websession
         self._api_key = api_key
+        self._referer = referer
 
     async def login(self, email: str, password: str) -> None:
         """Exchange login credentials for token credentials."""
@@ -157,7 +159,7 @@ class _TokenManager:
         query = {"key": self._api_key}
         headers = {
             "Content-Type": "application/json",
-            "referer": "https://cloud.thermoworks.com/"
+            "referer": self._referer
         }
         json = {
             "email": email,
@@ -218,7 +220,7 @@ class _TokenManager:
         url = f"{self._TOKEN_HOST}/v1/token?key={self._api_key}"
         headers = {
             "Content-Type": "application/json",
-            "referer": "https://cloud.thermoworks.com/"
+            "referer": self._referer
         }
         json = {
             "grant_type": "refresh_token",
@@ -266,31 +268,39 @@ class _Auth(_AuthBase):
 class AuthFactory:  # pylint: disable=too-few-public-methods
     """Builds `thermoworks_cloud.Auth` objects."""
 
-    _API_KEY = "AIzaSyCf079iccUFc1k7VHdGXng22zXDy8Y3KEY"
-    _APP_ID = "1:78998049458:web:b41e9d405d8c7de95eefab"
+    _DEFAULT_API_KEY = "AIzaSyCf079iccUFc1k7VHdGXng22zXDy8Y3KEY"
+    _DEFAULT_APP_ID = "1:78998049458:web:b41e9d405d8c7de95eefab"
+    _DEFAULT_REFERER = "https://cloud.thermoworks.com/"
     _FIREBASE_HOST = "https://firebase.googleapis.com"
     _FIRESTORE_HOST = "https://firestore.googleapis.com"
 
-    def __init__(self, websession: ClientSession) -> None:
+    def __init__(self, websession: ClientSession, api_key: str | None = None,
+                 app_id: str | None = None, referer: str | None = None) -> None:
         """Initialize the auth factory.
 
         Args:
             websession (ClientSession): The HTTP client to be used when authenticating the user.
+            api_key (str | None): Firebase API key. Defaults to ThermoWorks Cloud.
+            app_id (str | None): Firebase app ID. Defaults to ThermoWorks Cloud.
+            referer (str | None): Referer header value. Defaults to ThermoWorks Cloud.
         """
 
         if websession is None:
             raise ValueError("parameter cannot be None")
 
         self._websession = websession
+        self._api_key = api_key or self._DEFAULT_API_KEY
+        self._app_id = app_id or self._DEFAULT_APP_ID
+        self._referer = referer or self._DEFAULT_REFERER
 
     async def _get_config(self) -> _WebConfigResponse:
         """Get the Firestore project information for this application."""
 
-        url = f"{self._FIREBASE_HOST}/v1alpha/projects/-/apps/{self._APP_ID}/webConfig"
+        url = f"{self._FIREBASE_HOST}/v1alpha/projects/-/apps/{self._app_id}/webConfig"
         headers = {
             "accept": "application/json",
-            "x-goog-api-key": self._API_KEY,
-            "referer": "https://cloud.thermoworks.com/"
+            "x-goog-api-key": self._api_key,
+            "referer": self._referer
         }
 
         try:
@@ -305,7 +315,7 @@ class AuthFactory:  # pylint: disable=too-few-public-methods
         """Build an Auth instance.
 
         Args:
-            email (str): The email address of a ThermoWorks Cloud user.
+            email (str): The email address of a cloud user.
             password (str): The password for the user.
 
         Returns:
@@ -316,11 +326,12 @@ class AuthFactory:  # pylint: disable=too-few-public-methods
         project_id = web_config["projectId"]
         url_root = f"{self._FIRESTORE_HOST}/v1/projects/{project_id}/databases/(default)"
 
-        token_manager = _TokenManager(self._websession, self._API_KEY)
+        token_manager = _TokenManager(self._websession, self._api_key,
+                                      referer=self._referer)
         await token_manager.login(email, password)
         return _Auth(
             self._websession,
             api_url_root=url_root,
-            api_key=self._API_KEY,
+            api_key=self._api_key,
             token_manager=token_manager,
         )
