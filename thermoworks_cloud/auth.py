@@ -275,6 +275,7 @@ class _TokenManager:
 class _Auth(_AuthBase):
     """Execute authenticated requests."""
 
+    # pylint: disable-next=too-many-arguments,too-many-positional-arguments
     def __init__(
         self,
         websession: ClientSession,

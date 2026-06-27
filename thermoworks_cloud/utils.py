@@ -12,7 +12,7 @@ def parse_datetime(value: str) -> datetime:
     return datetime.fromisoformat(value)
 
 
-def unwrap_firestore_value(value_dict):
+def unwrap_firestore_value(value_dict):  # pylint: disable=too-many-return-statements
     """Recursively unwrap a Firestore value dictionary into Python values.
 
     Args:

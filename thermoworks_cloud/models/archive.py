@@ -13,7 +13,7 @@ from thermoworks_cloud.utils import (
 
 
 @dataclass
-class ArchiveMetadata:
+class ArchiveMetadata:  # pylint: disable=too-many-instance-attributes
     """Metadata for a historical archive stored by ThermoWorks Cloud."""
 
     archive_id: Optional[str] = None
