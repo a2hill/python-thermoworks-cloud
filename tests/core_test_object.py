@@ -69,3 +69,25 @@ class CoreTestObject:
         return self.httpserver.expect_request(
             url, method="POST", headers=headers, query_string=query_string, json=query_body
         )
+
+    def expect_list_device_archives(
+        self, access_token: str, device_serial: str
+    ) -> RequestHandler:
+        """Create a request handler for listing archive metadata for a device."""
+        url = f"{FIREBASE_APPLICATION_BASE_PATH}/devices/{device_serial}/archive"
+        headers = {"authorization": f"Bearer {access_token}"}
+        query_string = {"key": API_KEY}
+        return self.httpserver.expect_request(
+            url, headers=headers, query_string=query_string
+        )
+
+    def expect_download_archive(
+        self, access_token: str, storage_bucket: str, filename: str
+    ) -> RequestHandler:
+        """Create a request handler for downloading an archive JSON file."""
+        url = f"/v0/b/{storage_bucket}/o/{filename}"
+        headers = {"authorization": f"Bearer {access_token}"}
+        query_string = {"alt": "media"}
+        return self.httpserver.expect_request(
+            url, headers=headers, query_string=query_string
+        )

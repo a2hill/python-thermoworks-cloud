@@ -1,11 +1,18 @@
 """Accessor for the Thermoworks Cloud API."""
 
 import logging
+import urllib.parse
 from typing import List
 
 from thermoworks_cloud.utils import format_client_response
 
 from .auth import Auth
+from .models.archive import (
+    ArchiveData,
+    ArchiveMetadata,
+    _archive_json_to_data,
+    _document_to_archive_metadata,
+)
 from .models.device import Device, _document_to_device
 from .models.device_channel import DeviceChannel, _document_to_device_channel
 from .models.user import User, document_to_user
@@ -98,6 +105,61 @@ class ThermoworksCloud:
 
         raise RuntimeError(
             f"Failed to get device channel: {error_response}")
+
+
+    async def list_device_archives(self, device_serial: str) -> List[ArchiveMetadata]:
+        """Fetch historical archive metadata for a device.
+
+        Archives are completed batches of historical readings for a device over a time range.
+        """
+
+        response = await self._auth.request(
+            "get", f"documents/devices/{device_serial}/archive"
+        )
+        if response.ok:
+            archive_response = await response.json()
+            return [
+                _document_to_archive_metadata(document)
+                for document in archive_response.get("documents", [])
+            ]
+
+        if response.status == 404:
+            raise ResourceNotFoundError(
+                f"Archives for device with serial '{device_serial}' not found"
+            )
+
+        try:
+            error_response = await format_client_response(response)
+        except RuntimeError:
+            error_response = "Could not read response body."
+
+        raise RuntimeError(f"Failed to list device archives: {error_response}")
+
+    async def get_archive(self, filename: str) -> ArchiveData:
+        """Fetch and parse the readings for a historical archive by filename."""
+
+        quoted_filename = urllib.parse.quote(filename, safe="")
+        url = (
+            f"{self._auth.storage_url_root}/v0/b/{self._auth.storage_bucket}"
+            f"/o/{quoted_filename}"
+        )
+        response = await self._auth.request_url("get", url, params={"alt": "media"})
+
+        if response.ok:
+            # ThermoWorks archive objects use text/json rather than application/json.
+            # We set content_type=None to bypass the content type check in aiohttp.
+            archive_json = await response.json(content_type=None)
+            return _archive_json_to_data(archive_json, filename=filename)
+
+        if response.status == 404:
+            raise ResourceNotFoundError(f"Archive '{filename}' not found")
+
+        try:
+            error_response = await format_client_response(response)
+        except RuntimeError:
+            error_response = "Could not read response body."
+
+        raise RuntimeError(f"Failed to get archive: {error_response}")
 
     async def get_devices(self, account_id: str) -> List[Device]:
         """Fetch devices for the authenticated user using Firestore query.

@@ -774,3 +774,76 @@ GET_DEVICES_RESPONSE = [
         "readTime": "2023-01-01T00:00:00.000000000Z"
     }
 ]
+
+
+TEST_ARCHIVE_ID_0 = "test-archive-id-0"
+TEST_ARCHIVE_FILENAME = "archives/test-device/test-archive-id-0.json"
+
+GET_DEVICE_ARCHIVE_RESPONSE = {
+    "name": (
+        "projects/test-project-name/databases/(default)/documents/"
+        f"devices/{TEST_DEVICE_ID_0}/archive/{TEST_ARCHIVE_ID_0}"
+    ),
+    "fields": {
+        "type": {"stringValue": "auto"},
+        "label": {"stringValue": "Archive Session"},
+        "notes": {"stringValue": "archive notes"},
+        "filename": {"stringValue": TEST_ARCHIVE_FILENAME},
+        "deviceLabel": {"stringValue": "NODE"},
+        "public": {"booleanValue": False},
+        "publicLink": {"stringValue": "public-link-id"},
+        "count": {"integerValue": "2"},
+        "start": {"timestampValue": "2024-01-01T00:00:00.000Z"},
+        "end": {"timestampValue": "2024-01-01T01:00:00.000Z"},
+        "createdOn": {"timestampValue": "2024-01-01T03:00:00.000Z"},
+        "channels": {
+            "arrayValue": {
+                "values": [
+                    {
+                        "mapValue": {
+                            "fields": {
+                                "number": {"stringValue": "1"},
+                                "label": {"stringValue": "Channel 1"},
+                                "units": {"stringValue": "F"}
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        "events": {"arrayValue": {"values": []}},
+        "deviceData": {
+            "mapValue": {
+                "fields": {
+                    "serial": {"stringValue": TEST_DEVICE_ID_0},
+                    "type": {"stringValue": "datalogger"}
+                }
+            }
+        }
+    },
+    "createTime": "2024-01-01T03:00:00.000Z",
+    "updateTime": "2024-01-01T03:00:00.000Z"
+}
+
+GET_DEVICE_ARCHIVES_RESPONSE = {
+    "documents": [GET_DEVICE_ARCHIVE_RESPONSE]
+}
+
+GET_DEVICE_ARCHIVE_DATA_RESPONSE = {
+    "serial": TEST_DEVICE_ID_0,
+    "type": "auto",
+    "label": "Archive Session",
+    "notes": "archive notes",
+    "deviceLabel": "NODE",
+    "start": "2024-01-01T00:00:00.000Z",
+    "end": "2024-01-01T01:00:00.000Z",
+    "channels": [
+        {"number": "1", "label": "Channel 1", "units": "F"}
+    ],
+    "events": [],
+    "deviceData": {"serial": TEST_DEVICE_ID_0, "type": "datalogger"},
+    "readings": [
+        ["1", 1704067200000, 32.1, "F"],
+        ["1", 1704070800000, 33.2, "F"]
+    ]
+}

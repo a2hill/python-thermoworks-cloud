@@ -18,9 +18,15 @@ from tests.test_data import (
     GET_DEVICE_RESPONSE,
     GET_DEVICE_CHANNEL_RESPONSE,
     GET_DEVICES_RESPONSE,
+    CONFIG_RETURN_VALUE,
+    GET_DEVICE_ARCHIVE_DATA_RESPONSE,
+    GET_DEVICE_ARCHIVE_RESPONSE,
+    GET_DEVICE_ARCHIVES_RESPONSE,
+    TEST_ARCHIVE_FILENAME,
+    TEST_ARCHIVE_ID_0,
 )
 from thermoworks_cloud.auth import Auth
-from thermoworks_cloud import ThermoworksCloud
+from thermoworks_cloud import ResourceNotFoundError, ThermoworksCloud
 
 
 def iso_instant(datetime_input: datetime) -> str:
@@ -847,3 +853,99 @@ class TestCore:  # pylint: disable=too-many-public-methods
                 assert False, "Should have thrown an exception"
             except RuntimeError as e:
                 assert e is not None, "Errors should not be swallowed"
+
+    async def test_list_device_archives(
+        self, auth: Auth, core_test_object: CoreTestObject
+    ):
+        """Test listing historical archive metadata for a device."""
+        core_test_object.expect_list_device_archives(
+            access_token=TEST_ID_TOKEN, device_serial=TEST_DEVICE_ID_0
+        ).respond_with_json(GET_DEVICE_ARCHIVES_RESPONSE)
+        thermoworks_cloud = ThermoworksCloud(auth)
+
+        archives = await thermoworks_cloud.list_device_archives(TEST_DEVICE_ID_0)
+
+        assert len(archives) == 1
+        archive = archives[0]
+        assert archive.archive_id == TEST_ARCHIVE_ID_0
+        assert archive.type == "auto"
+        assert archive.label == "Archive Session"
+        assert archive.notes == "archive notes"
+        assert archive.filename == TEST_ARCHIVE_FILENAME
+        assert archive.device_label == "NODE"
+        assert archive.public is False
+        assert archive.public_link == "public-link-id"
+        assert archive.count == 2
+        assert iso_instant(archive.start) == get_field_value(
+            GET_DEVICE_ARCHIVE_RESPONSE, "start"
+        )
+        assert iso_instant(archive.end) == get_field_value(
+            GET_DEVICE_ARCHIVE_RESPONSE, "end"
+        )
+        assert iso_instant(archive.created_on) == get_field_value(
+            GET_DEVICE_ARCHIVE_RESPONSE, "createdOn"
+        )
+        assert archive.channels == [
+            {"number": "1", "label": "Channel 1", "units": "F"}
+        ]
+        assert archive.events == []
+        assert archive.device_data == {
+            "serial": TEST_DEVICE_ID_0,
+            "type": "datalogger",
+        }
+
+    async def test_get_archive(
+        self, auth: Auth, core_test_object: CoreTestObject
+    ):
+        """Test fetching and parsing an archive JSON object."""
+        core_test_object.expect_download_archive(
+            access_token=TEST_ID_TOKEN,
+            storage_bucket=CONFIG_RETURN_VALUE["storageBucket"],
+            filename=TEST_ARCHIVE_FILENAME,
+        ).respond_with_json(GET_DEVICE_ARCHIVE_DATA_RESPONSE)
+        thermoworks_cloud = ThermoworksCloud(auth)
+
+        archive_data = await thermoworks_cloud.get_archive(TEST_ARCHIVE_FILENAME)
+
+        assert archive_data.filename == TEST_ARCHIVE_FILENAME
+        assert archive_data.serial == TEST_DEVICE_ID_0
+        assert archive_data.type == "auto"
+        assert archive_data.label == "Archive Session"
+        assert archive_data.notes == "archive notes"
+        assert archive_data.device_label == "NODE"
+        assert iso_instant(archive_data.start) == GET_DEVICE_ARCHIVE_DATA_RESPONSE["start"]
+        assert iso_instant(archive_data.end) == GET_DEVICE_ARCHIVE_DATA_RESPONSE["end"]
+        assert archive_data.channels == GET_DEVICE_ARCHIVE_DATA_RESPONSE["channels"]
+        assert archive_data.events == []
+        assert archive_data.device_data == GET_DEVICE_ARCHIVE_DATA_RESPONSE["deviceData"]
+        assert len(archive_data.readings) == 2
+        assert archive_data.readings[0].channel == "1"
+        assert iso_instant(archive_data.readings[0].timestamp) == "2024-01-01T00:00:00.000Z"
+        assert archive_data.readings[0].value == 32.1
+        assert archive_data.readings[0].units == "F"
+
+    async def test_list_device_archives_4xx_throws(
+        self, auth: Auth, core_test_object: CoreTestObject
+    ):
+        """Test archive listing error handling."""
+        core_test_object.expect_list_device_archives(
+            access_token=TEST_ID_TOKEN, device_serial=TEST_DEVICE_ID_0
+        ).respond_with_data(status=400, response_data=b"Bad Request")
+        thermoworks_cloud = ThermoworksCloud(auth)
+
+        with pytest.raises(RuntimeError):
+            await thermoworks_cloud.list_device_archives(TEST_DEVICE_ID_0)
+
+    async def test_get_archive_404_throws(
+        self, auth: Auth, core_test_object: CoreTestObject
+    ):
+        """Test archive data error handling."""
+        core_test_object.expect_download_archive(
+            access_token=TEST_ID_TOKEN,
+            storage_bucket=CONFIG_RETURN_VALUE["storageBucket"],
+            filename=TEST_ARCHIVE_FILENAME,
+        ).respond_with_data(status=404, response_data=b"Not Found")
+        thermoworks_cloud = ThermoworksCloud(auth)
+
+        with pytest.raises(ResourceNotFoundError):
+            await thermoworks_cloud.get_archive(TEST_ARCHIVE_FILENAME)

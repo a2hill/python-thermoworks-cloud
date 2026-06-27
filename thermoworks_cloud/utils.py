@@ -13,7 +13,7 @@ def parse_datetime(value: str) -> datetime:
 
 
 def unwrap_firestore_value(value_dict):
-    """Unwrap a Firestore value dictionary into a single Python value.
+    """Recursively unwrap a Firestore value dictionary into Python values.
 
     Args:
         value_dict (dict): A Firestore value dictionary containing a type and value
@@ -21,6 +21,38 @@ def unwrap_firestore_value(value_dict):
     Returns:
         The Python value
     """
+    if "stringValue" in value_dict:
+        return value_dict["stringValue"]
+    if "integerValue" in value_dict:
+        return int(value_dict["integerValue"])
+    if "doubleValue" in value_dict:
+        return float(value_dict["doubleValue"])
+    if "booleanValue" in value_dict:
+        return bool(value_dict["booleanValue"])
+    if "timestampValue" in value_dict:
+        return parse_datetime(value_dict["timestampValue"])
+    if "referenceValue" in value_dict:
+        return value_dict["referenceValue"]
+    if "mapValue" in value_dict:
+        return {
+            key: unwrap_firestore_value(value)
+            for key, value in value_dict["mapValue"].get("fields", {}).items()
+        }
+    if "arrayValue" in value_dict:
+        return [
+            unwrap_firestore_value(value)
+            for value in value_dict["arrayValue"].get("values", [])
+        ]
+    if "fields" in value_dict:
+        return {
+            key: unwrap_firestore_value(value)
+            for key, value in value_dict["fields"].items()
+        }
+    if "values" in value_dict:
+        return [unwrap_firestore_value(value) for value in value_dict["values"]]
+    if "nullValue" in value_dict:
+        return None
+
     value = value_dict.values()
     if len(value) != 1:
         raise ValueError("Firestore values must contain a single value")

@@ -33,7 +33,8 @@ def override_authfactory_hosts(httpserver_endpoint: str):
 
     with patch.object(AuthFactory, "_FIREBASE_HOST", httpserver_endpoint):
         with patch.object(AuthFactory, "_FIRESTORE_HOST", httpserver_endpoint):
-            yield
+            with patch.object(AuthFactory, "_FIREBASE_STORAGE_HOST", httpserver_endpoint):
+                yield
 
 
 @pytest.fixture(name="auth_test_object")
