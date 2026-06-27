@@ -71,12 +71,18 @@ class CoreTestObject:
         )
 
     def expect_list_device_archives(
-        self, access_token: str, device_serial: str
+        self,
+        access_token: str,
+        device_serial: str,
+        page_token: str | None = None,
+        order: str = "desc",
     ) -> RequestHandler:
         """Create a request handler for listing archive metadata for a device."""
         url = f"{FIREBASE_APPLICATION_BASE_PATH}/devices/{device_serial}/archive"
         headers = {"authorization": f"Bearer {access_token}"}
-        query_string = {"key": API_KEY}
+        query_string = {"key": API_KEY, "orderBy": f"createdOn {order}"}
+        if page_token:
+            query_string["pageToken"] = page_token
         return self.httpserver.expect_request(
             url, headers=headers, query_string=query_string
         )

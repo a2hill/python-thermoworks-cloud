@@ -863,10 +863,11 @@ class TestCore:  # pylint: disable=too-many-public-methods
         ).respond_with_json(GET_DEVICE_ARCHIVES_RESPONSE)
         thermoworks_cloud = ThermoworksCloud(auth)
 
-        archives = await thermoworks_cloud.list_device_archives(TEST_DEVICE_ID_0)
+        archive_page = await thermoworks_cloud.list_device_archives(TEST_DEVICE_ID_0)
 
-        assert len(archives) == 1
-        archive = archives[0]
+        assert archive_page.next_page_token == "next-page-token"
+        assert len(archive_page.archives) == 1
+        archive = archive_page.archives[0]
         assert archive.archive_id == TEST_ARCHIVE_ID_0
         assert archive.type == "auto"
         assert archive.label == "Archive Session"
@@ -893,6 +894,35 @@ class TestCore:  # pylint: disable=too-many-public-methods
             "serial": TEST_DEVICE_ID_0,
             "type": "datalogger",
         }
+
+    async def test_list_device_archives_with_page_token(
+        self, auth: Auth, core_test_object: CoreTestObject
+    ):
+        """Test retrieving the next page of archive metadata."""
+        core_test_object.expect_list_device_archives(
+            access_token=TEST_ID_TOKEN,
+            device_serial=TEST_DEVICE_ID_0,
+            page_token="page-token",
+            order="asc",
+        ).respond_with_json({"documents": []})
+        thermoworks_cloud = ThermoworksCloud(auth)
+
+        archive_page = await thermoworks_cloud.list_device_archives(
+            TEST_DEVICE_ID_0, page_token="page-token", order="asc"
+        )
+
+        assert archive_page.archives == []
+        assert archive_page.next_page_token is None
+
+
+    async def test_list_device_archives_with_invalid_order_throws(self, auth: Auth):
+        """Test rejecting an unsupported archive ordering value."""
+        thermoworks_cloud = ThermoworksCloud(auth)
+
+        with pytest.raises(ValueError, match="order must be 'asc' or 'desc'"):
+            await thermoworks_cloud.list_device_archives(
+                TEST_DEVICE_ID_0, order="newest"  # type: ignore[arg-type]
+            )
 
     async def test_get_archive(
         self, auth: Auth, core_test_object: CoreTestObject

@@ -826,7 +826,8 @@ GET_DEVICE_ARCHIVE_RESPONSE = {
 }
 
 GET_DEVICE_ARCHIVES_RESPONSE = {
-    "documents": [GET_DEVICE_ARCHIVE_RESPONSE]
+    "documents": [GET_DEVICE_ARCHIVE_RESPONSE],
+    "nextPageToken": "next-page-token",
 }
 
 GET_DEVICE_ARCHIVE_DATA_RESPONSE = {

@@ -2,14 +2,14 @@
 
 import logging
 import urllib.parse
-from typing import List
+from typing import List, Literal, Optional
 
 from thermoworks_cloud.utils import format_client_response
 
 from .auth import Auth
 from .models.archive import (
     ArchiveData,
-    ArchiveMetadata,
+    ArchivePage,
     _archive_json_to_data,
     _document_to_archive_metadata,
 )
@@ -106,22 +106,38 @@ class ThermoworksCloud:
         raise RuntimeError(
             f"Failed to get device channel: {error_response}")
 
+    async def list_device_archives(
+        self,
+        device_serial: str,
+        page_token: Optional[str] = None,
+        order: Literal["asc", "desc"] = "desc",
+    ) -> ArchivePage:
+        """Fetch a page of historical archive metadata for a device.
 
-    async def list_device_archives(self, device_serial: str) -> List[ArchiveMetadata]:
-        """Fetch historical archive metadata for a device.
-
-        Archives are completed batches of historical readings for a device over a time range.
+        Archives are ordered by creation time, newest first by default. Pass
+        ``order="asc"`` for oldest first, and pass the returned
+        ``next_page_token`` to retrieve the following page.
         """
 
+        if order not in ("asc", "desc"):
+            raise ValueError("order must be 'asc' or 'desc'")
+
+        params = {"orderBy": f"createdOn {order}"}
+        if page_token:
+            params["pageToken"] = page_token
+
         response = await self._auth.request(
-            "get", f"documents/devices/{device_serial}/archive"
+            "get", f"documents/devices/{device_serial}/archive", params=params
         )
         if response.ok:
             archive_response = await response.json()
-            return [
-                _document_to_archive_metadata(document)
-                for document in archive_response.get("documents", [])
-            ]
+            return ArchivePage(
+                archives=[
+                    _document_to_archive_metadata(document)
+                    for document in archive_response.get("documents", [])
+                ],
+                next_page_token=archive_response.get("nextPageToken"),
+            )
 
         if response.status == 404:
             raise ResourceNotFoundError(

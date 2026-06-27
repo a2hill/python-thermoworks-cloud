@@ -71,6 +71,16 @@ class ArchiveMetadata:  # pylint: disable=too-many-instance-attributes
 
 
 @dataclass
+class ArchivePage:
+    """A page of archive metadata returned by ThermoWorks Cloud."""
+
+    archives: List[ArchiveMetadata] = field(default_factory=list)
+    """Archive metadata ordered by creation time, defaults to newest first."""
+    next_page_token: Optional[str] = None
+    """Token to pass to ``list_device_archives`` to retrieve the next page."""
+
+
+@dataclass
 class ArchiveReading:
     """A single reading from an archived ThermoWorks data file."""
 

@@ -1,9 +1,10 @@
 """Demonstrates how to retrieve historical archives for a device.
 
 This example shows how to:
-1. List the available archive metadata for a device
-2. Retrieve an archive using its filename
-3. Iterate over the archived readings
+1. List every page of archive metadata, newest first
+2. Pass each page token to retrieve the next page
+3. Retrieve the most recent archive using its filename
+4. Iterate over the archived readings
 """
 
 import asyncio
@@ -35,18 +36,43 @@ async def __main__():
         if selected_serial is None:
             raise RuntimeError("No device with a serial number found")
 
-        archives = await thermoworks.list_device_archives(selected_serial)
-        print(f"Found {len(archives)} archive(s) for device {selected_serial}")
+        page_token = None
+        page_number = 0
+        archive_count = 0
+        latest_archive = None
 
-        downloadable_archive = next(
-            (archive for archive in archives if archive.filename), None
-        )
-        if downloadable_archive is None:
-            print("No downloadable archives found.")
+        while True:
+            archive_page = await thermoworks.list_device_archives(
+                selected_serial,
+                page_token=page_token,
+                order="desc",
+            )
+            page_number += 1
+            archive_count += len(archive_page.archives)
+
+            if latest_archive is None and archive_page.archives:
+                latest_archive = archive_page.archives[0]
+
+            print(
+                f"Fetched page {page_number} with {len(archive_page.archives)} "
+                f"archive(s); another page: {bool(archive_page.next_page_token)}"
+            )
+
+            page_token = archive_page.next_page_token
+            if not page_token:
+                break
+
+        print(f"Found {archive_count} archive(s) for device {selected_serial}")
+
+        if latest_archive is None:
+            print("No archives found.")
             return
 
-        pprint(asdict(downloadable_archive))
-        archive_data = await thermoworks.get_archive(downloadable_archive.filename)
+        if not latest_archive.filename:
+            raise RuntimeError("Latest archive does not include a filename")
+
+        pprint(asdict(latest_archive))
+        archive_data = await thermoworks.get_archive(latest_archive.filename)
         print(
             f"\nArchive contains {len(archive_data.readings)} reading(s) "
             f"from {archive_data.start} to {archive_data.end}"
