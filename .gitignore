@@ -7,6 +7,9 @@ Icon
 # Github Actions
 .secrets
 
+# uv / venv
+.venv/
+
 # pytest
 **/__pycache__
 .pytest_cache/
