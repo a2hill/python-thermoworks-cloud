@@ -1,0 +1,54 @@
+name: Recover v0.1.17 GitHub release
+
+on:
+  push:
+    branches: [codex/recover-v0.1.17]
+
+permissions:
+  actions: read
+  contents: write
+  id-token: write
+
+jobs:
+  github-release:
+    name: Sign original v0.1.17 distributions and create GitHub release
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download original distributions
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+        run-id: 40704934577
+        github-token: ${{ github.token }}
+
+    - name: Verify original distribution hashes against PyPI
+      working-directory: dist
+      run: |
+        sha256sum --check <<'EOF'
+        11e0e7ab41f9f40b3eb017f2578c7136589ed5476730d862f7c57d7e2211d46e  thermoworks_cloud-0.1.17-py3-none-any.whl
+        f6f34c6201d1af3a6285c5d35ab4c895d097f70962437e622137580ffaf19dc3  thermoworks_cloud-0.1.17.tar.gz
+        EOF
+
+    - name: Sign the dists with Sigstore
+      uses: sigstore/gh-action-sigstore-python@v3.5.0
+      with:
+        inputs: >-
+          ./dist/*.tar.gz
+          ./dist/*.whl
+
+    - name: Create GitHub Release
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: >-
+        gh release create v0.1.17
+        --repo '${{ github.repository }}'
+        --verify-tag
+        --generate-notes
+
+    - name: Upload distributions and signatures to GitHub Release
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: >-
+        gh release upload v0.1.17 dist/*
+        --repo '${{ github.repository }}'
