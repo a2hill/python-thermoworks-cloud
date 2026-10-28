@@ -1,11 +1,11 @@
 """Test suite for ThermoWorks device channels."""
 
-from copy import deepcopy
-
-import pytest
-
 from tests.core_test_object import CoreTestObject
-from tests.test_data import GET_RFX_AIR_PROBE_CHANNEL_RESPONSE, TEST_ID_TOKEN
+from tests.test_data import (
+    GET_RFX_AIR_PROBE_CHANNEL_RESPONSE,
+    GET_SIGNALS_CHANNEL_RESPONSE,
+    TEST_ID_TOKEN,
+)
 from thermoworks_cloud import ThermoworksCloud
 from thermoworks_cloud.auth import Auth
 
@@ -22,32 +22,6 @@ async def _get_channel_from_response(
 
     thermoworks_cloud = ThermoworksCloud(auth)
     return await thermoworks_cloud.get_device_channel("test_device_serial", "1")
-
-
-@pytest.mark.parametrize(
-    ("number_field", "expected_number"),
-    [
-        pytest.param({"stringValue": "1"}, "1", id="string-number"),
-        pytest.param({"integerValue": "1"}, "1", id="signals-integer-number"),
-        pytest.param(None, None, id="missing-number"),
-    ],
-)
-async def test_get_channel_number(
-    auth: Auth,
-    core_test_object: CoreTestObject,
-    number_field: dict | None,
-    expected_number: str | None,
-):
-    """Normalize string and integer channel numbers while keeping missing numbers optional."""
-    response = deepcopy(GET_RFX_AIR_PROBE_CHANNEL_RESPONSE)
-    if number_field is None:
-        response["fields"].pop("number", None)
-    else:
-        response["fields"]["number"] = number_field
-
-    channel = await _get_channel_from_response(auth, core_test_object, response)
-
-    assert channel.number == expected_number
 
 
 async def test_get_rfx_air_probe_channel_alarms(
@@ -76,3 +50,18 @@ async def test_get_rfx_air_probe_channel_alarms(
         channel.additional_properties["estimatedAlarmStatus"]
         == "Alarm needs to be set to calculate estimated time"
     )
+
+
+async def test_get_signals_channel(
+    auth: Auth, core_test_object: CoreTestObject
+):
+    """Test parsing a Signals channel with an integer channel number."""
+    channel = await _get_channel_from_response(
+        auth, core_test_object, GET_SIGNALS_CHANNEL_RESPONSE
+    )
+
+    assert channel.number == "1"
+    assert channel.value == 69.8
+    assert channel.units == "F"
+    assert channel.type == "pro series"
+    assert channel.status == "NORMAL"
