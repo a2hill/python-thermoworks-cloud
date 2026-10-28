@@ -88,7 +88,8 @@ class DeviceChannel:  # pylint: disable=too-many-instance-attributes
         default=None, metadata={"api_name": "alarmLow"})
     """The device channel number"""
     number: Optional[str] = field(default=None, metadata={
-                                  "firestore_type": "stringValue"})
+                                  "firestore_type": ["stringValue", "integerValue"],
+                                  "converter": str})
     minimum: Optional[MinMaxReading] = None
     maximum: Optional[MinMaxReading] = None
     show_avg_temp: Optional[bool] = field(
