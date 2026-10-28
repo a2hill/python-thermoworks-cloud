@@ -762,6 +762,34 @@ GET_DEVICE_CHANNEL_RESPONSE_INT = json.loads(
 }"""
 )
 
+GET_SIGNALS_CHANNEL_RESPONSE = json.loads(
+    """
+{
+  "name": "projects/test-project-name/databases/(default)/documents/devices/test-device/channels/1",
+  "fields": {
+    "number": { "integerValue": "1" },
+    "label": { "stringValue": "test-label" },
+    "type": { "stringValue": "pro series" },
+    "units": { "stringValue": "F" },
+    "enabled": { "booleanValue": true },
+    "value": { "doubleValue": 69.8 },
+    "status": { "stringValue": "NORMAL" },
+    "color": { "stringValue": "blue" },
+    "calibration": { "integerValue": "0" },
+    "alarmHigh": { "mapValue": { "fields": {
+      "value": { "integerValue": "205" },
+      "enabled": { "booleanValue": false }
+    } } },
+    "alarmLow": { "mapValue": { "fields": {
+      "value": { "integerValue": "0" },
+      "enabled": { "booleanValue": false }
+    } } },
+    "lastSeen": { "timestampValue": "2026-10-28T01:56:51.142Z" }
+  },
+  "createTime": "2026-02-01T18:34:30.952755Z"
+}"""
+)
+
 GET_RFX_AIR_PROBE_CHANNEL_RESPONSE = deepcopy(GET_DEVICE_CHANNEL_RESPONSE)
 GET_RFX_AIR_PROBE_CHANNEL_RESPONSE["fields"].update({
     "lastTelemetrySaved": {"timestampValue": "2026-07-16T15:09:07.706Z"},
