@@ -74,13 +74,12 @@ class FanState(IntEnum):
     PULSING = 2
 
 
-def _parse_fan_state(value: Union[int, str]) -> Union[FanState, int]:
-    """Name known states while preserving future state codes as integers."""
-    number = int(value)
+def _parse_fan_state(value: int) -> Union[FanState, int]:
+    """Name API states while preserving future state codes as integers."""
     try:
-        return FanState(number)
+        return FanState(value)
     except ValueError:
-        return number
+        return value
 
 
 @dataclass
@@ -112,7 +111,7 @@ class Fan:
     # IntEnum keeps existing numeric comparisons and serialization compatible.
     # Unknown vendor codes remain integers rather than failing the entire device.
     state: Optional[Union[FanState, int]] = field(
-        default=None, metadata={"firestore_type": "integerValue", "converter": _parse_fan_state})
+        default=None, metadata={"firestore_type": "integerValue", "converter": int})
 
     additional_properties: Optional[Dict] = None
 

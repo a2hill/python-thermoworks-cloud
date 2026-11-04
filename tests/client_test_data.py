@@ -221,6 +221,13 @@ GET_DEVICES_API_BILLOWS_PULSING_RESPONSE = _response_with_fan_state(FanState.PUL
 GET_DEVICES_API_BILLOWS_DISCONNECTED_RESPONSE = _response_with_fan_state(
     FanState.PAUSED, connected=False
 )
+# Synthetic combinations: connection and the last reported operating state are independent.
+GET_DEVICES_API_BILLOWS_DISCONNECTED_BLOWING_RESPONSE = _response_with_fan_state(
+    FanState.BLOWING, connected=False
+)
+GET_DEVICES_API_BILLOWS_DISCONNECTED_PULSING_RESPONSE = _response_with_fan_state(
+    FanState.PULSING, connected=False
+)
 # Synthetic boundary cases: not observed states in the contributed captures.
 GET_DEVICES_API_BILLOWS_UNKNOWN_RESPONSE = _response_with_fan_state(99)
 GET_DEVICES_API_BILLOWS_NULL_STATE_RESPONSE = _response_with_fan_state(None)

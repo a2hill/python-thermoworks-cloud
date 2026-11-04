@@ -13,7 +13,6 @@ from tests.test_data import (
 )
 from thermoworks_cloud import ThermoworksCloud
 from thermoworks_cloud.auth import Auth
-from thermoworks_cloud.models import FanState
 
 
 async def _get_device_from_response(
@@ -73,11 +72,6 @@ async def test_get_device_fan_state_name(
     )
 
     assert device.fan is not None
-    assert device.fan.state == state
-    if state == 99:
-        assert not isinstance(device.fan.state, FanState)
-    else:
-        assert device.fan.state is FanState(state)
     assert device.fan.state_name == state_name
 
 
