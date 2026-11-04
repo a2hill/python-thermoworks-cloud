@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import math
 from email.utils import parsedate_to_datetime
-from typing import Any
+from typing import Any, Mapping
 
 from aiohttp import ClientError, ClientSession, ClientTimeout, ContentTypeError
 
@@ -103,7 +103,9 @@ class ThermoworksClient:
             raise MalformedResponseError("API response is not a JSON object")
         return payload
 
-    async def _request(self, path: str, headers: dict[str, str] | None = None):
+    async def _request(
+        self, path: str, headers: dict[str, str] | None = None
+    ) -> tuple[int, Mapping[str, str], Any]:
         request_headers = {
             "Authorization": f"Bearer {self._api_key}",
             "Accept": "application/json",
