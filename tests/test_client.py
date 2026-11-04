@@ -10,7 +10,7 @@ from aiohttp import ClientSession
 import pytest
 
 from tests.client_test_object import ClientTestObject
-from tests.test_data import (
+from tests.client_test_data import (
     ERROR_RESPONSE,
     GET_DEVICES_API_NULLS_RESPONSE,
     GET_DEVICES_API_RESPONSE,
