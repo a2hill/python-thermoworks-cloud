@@ -7,44 +7,14 @@ from typing import Any, Callable, Dict, Optional, Type
 from aiohttp import ClientResponse
 
 
-def _object(value: Any) -> dict:
-    """Require an object before accessing fields; never report response values."""
-    if not isinstance(value, dict):
-        raise ValueError("Expected a JSON object")
-    return value
-
-
-def _field(data: dict, name: str, kind: type | tuple[type, ...], required: bool = False) -> Any:
-    """Read a typed field, allowing absent or null optional fields."""
-    value = data.get(name)
-    if value is None and not required:
-        return None
-    if not isinstance(value, kind) or (isinstance(value, bool) and kind != bool):
-        raise ValueError(f"Invalid API field: {name}")
-    if required and isinstance(value, str) and not value:
-        raise ValueError(f"Empty API field: {name}")
-    return value
-
-
-def _timestamp(data: dict, name: str) -> datetime | None:
-    """Parse an API timestamp without inventing a timezone when it is missing."""
-    value = _field(data, name, str)
-    if value is None:
-        return None
-    result = parse_datetime(value.replace("Z", "+00:00"))
-    if result.tzinfo is None:
-        raise ValueError(f"API timestamp has no timezone: {name}")
-    return result
-
-
-def _additional(data: dict, consumed: set[str]) -> dict | None:
-    """Preserve fields absent from the existing model for forward compatibility."""
-    return {key: value for key, value in data.items() if key not in consumed} or None
-
-
 def parse_datetime(value: str) -> datetime:
     """Convert Firestore timestamp string to a datetime object."""
     return datetime.fromisoformat(value)
+
+
+def parse_optional_datetime(value: Optional[str]) -> Optional[datetime]:
+    """Convert a timestamp string from the API, which may be null, to a datetime object."""
+    return parse_datetime(value) if value else None
 
 
 def unwrap_firestore_value(value_dict):  # pylint: disable=too-many-return-statements

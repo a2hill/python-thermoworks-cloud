@@ -2,10 +2,16 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import ClassVar, Optional, Dict
+from typing import ClassVar, List, Optional, Dict
 
-from thermoworks_cloud.utils import parse_datetime, map_firestore_fields, parse_nested_object
-from thermoworks_cloud.utils import _object, _field, _timestamp, _additional
+from thermoworks_cloud.utils import (
+    parse_datetime,
+    parse_optional_datetime,
+    map_firestore_fields,
+    parse_nested_object,
+)
+
+from .device_channel import DeviceChannel, _json_to_device_channel
 
 
 @dataclass
@@ -63,6 +69,13 @@ class Device:  # pylint: disable=too-many-instance-attributes
 
     All fields are optional as different device types may have different properties.
     The Node device type is known to have all these properties.
+
+    Deprecated: these fields only exist in Firebase. `ThermoworksClient` leaves them unset, and
+    they will be removed along with the Firebase implementation once the EU API is available:
+    `color`, `thumbnail`, `iot_device_id`, `account_id`, `status`, `big_query_info`,
+    `recording_interval_in_seconds`, `pending_load`, `battery_alert_sent`, `export_version`,
+    `last_purged`, `last_archive`, `last_telemetry_saved`, `last_wifi_connection`,
+    `last_bluetooth_connection`, `session_start`, `create_time` and `update_time`.
     """
 
     device_id: Optional[str] = field(
@@ -150,6 +163,10 @@ class Device:  # pylint: disable=too-many-instance-attributes
     create_time: Optional[datetime] = None
     update_time: Optional[datetime] = None
 
+    # Only set by `ThermoworksClient`, which receives channels nested in each device.
+    # Firebase channels are fetched separately with `ThermoworksCloud.get_device_channel`.
+    channels: Optional[List[DeviceChannel]] = None
+
     # Dictionary to store any additional properties not explicitly defined
     additional_properties: Optional[Dict] = None
 
@@ -187,30 +204,77 @@ def _document_to_device(document: dict) -> Device:
     return device
 
 
-def _api_to_device(payload: dict) -> Device:
-    """Map documented API fields to the existing device abstraction.
+def _json_to_fan(data: dict) -> Fan:
+    """Convert a fan from the ThermoWorks API into a Fan object.
 
-    API id is required and authoritative; a serial cannot replace it. Model
-    and type are distinct. Firebase-only properties remain unset rather than
-    being inferred, and unrecognized API fields remain in additional_properties.
-    Channels belong to the response envelope and are converted separately.
+    The API documentation does not cover `fan` and no response with a connected fan has been
+    captured yet, so this assumes it uses the same field names as Firebase.
     """
-    data = _object(payload)
-    device = Device(
-        device_id=_field(data, "id", str, required=True),
-        serial=_field(data, "serial", str),
-        label=_field(data, "label", str),
-        type=_field(data, "type", str),
-        device_name=_field(data, "model", str),
-        firmware=_field(data, "firmware", str),
-        battery=_field(data, "battery", (int, float)),
-        wifi_strength=_field(data, "wifiSignal", (int, float)),
-        gateway_rssi=_field(data, "gatewaySignal", (int, float)),
-        last_seen=_timestamp(data, "lastSeen"),
-        transmit_interval_in_seconds=_field(data, "transmitIntervalSeconds", (int, float)),
+    known_fields = {"connected", "connection", "fan_channel", "setTemp", "state"}
+    additional_properties = {
+        key: value for key, value in data.items() if key not in known_fields
+    }
+    fan_channel = data.get("fan_channel")
+
+    return Fan(
+        connected=data.get("connected"),
+        connection=data.get("connection"),
+        fan_channel=str(fan_channel) if fan_channel is not None else None,
+        set_temp=data.get("setTemp"),
+        state=data.get("state"),
+        additional_properties=additional_properties or None,
     )
-    device.additional_properties = _additional(data, {
-        "id", "serial", "label", "type", "model", "firmware", "battery",
-        "wifiSignal", "gatewaySignal", "lastSeen", "transmitIntervalSeconds", "channels",
-    })
-    return device
+
+
+def _json_to_device(data: dict) -> Device:
+    """Convert a device from the ThermoWorks API into a Device object.
+
+    Most fields keep their Firebase meaning under a new name:
+    - `id` is `device_id`. Both it and `serial` have been observed to match the Firebase values.
+    - `model` is `device_name`, and `type` is unchanged. For a Node they are "node" and
+      "datalogger" in both.
+    - `wifiSignal` is `wifi_strength`, and `gatewaySignal` is `gateway_rssi`.
+
+    `displayUnits`, `batteryState` and `fan` are returned by the service but are not in the API
+    documentation, so they could change without notice.
+    """
+    known_fields = {
+        "id",
+        "serial",
+        "label",
+        "model",
+        "displayUnits",
+        "type",
+        "firmware",
+        "battery",
+        "batteryState",
+        "fan",
+        "wifiSignal",
+        "gatewaySignal",
+        "lastSeen",
+        "transmitIntervalSeconds",
+        "channels",
+    }
+    additional_properties = {
+        key: value for key, value in data.items() if key not in known_fields
+    }
+    fan = data.get("fan")
+
+    return Device(
+        device_id=data.get("id"),
+        serial=data.get("serial"),
+        label=data.get("label"),
+        device_name=data.get("model"),
+        device_display_units=data.get("displayUnits"),
+        type=data.get("type"),
+        firmware=data.get("firmware"),
+        battery=data.get("battery"),
+        battery_state=data.get("batteryState"),
+        fan=_json_to_fan(fan) if fan else None,
+        wifi_strength=data.get("wifiSignal"),
+        gateway_rssi=data.get("gatewaySignal"),
+        last_seen=parse_optional_datetime(data.get("lastSeen")),
+        transmit_interval_in_seconds=data.get("transmitIntervalSeconds"),
+        channels=[_json_to_device_channel(channel) for channel in data.get("channels", [])],
+        additional_properties=additional_properties or None,
+    )

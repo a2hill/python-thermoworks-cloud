@@ -1,166 +1,412 @@
-"""Tests of the API client's public interfaces."""
+"""Test suite for the ThermoworksClient object, which reads the ThermoWorks API.
 
+`test_core.py` covers `ThermoworksCloud`, which reads Firebase. The two share nothing except the
+models they return, so these tests can stay when the Firebase implementation is removed.
+"""
+
+from datetime import datetime
+
+from aiohttp import ClientSession
 import pytest
-from aiohttp import ClientError
 
-from thermoworks_cloud import (
-    ApiError,
-    ApiAuthenticationError,
-    MalformedResponseError,
-    RateLimitError,
-    ResourceNotFoundError,
-)
-from thermoworks_cloud.models import Account, ApiKeyInfo, Plan, RateLimit
+from tests.client_test_object import ClientTestObject
 from tests.test_data import (
-    API_INVALID_DEVICES,
-    API_INVALID_ACCOUNTS,
-    API_NON_JSON_RESPONSES,
-    API_INVALID_SNAPSHOT_RESPONSE,
-    API_MAPPING_RESPONSE,
+    ERROR_RESPONSE,
+    GET_DEVICES_API_NULLS_RESPONSE,
+    GET_DEVICES_API_RESPONSE,
+    GET_DEVICES_API_WITH_GATEWAY_AND_FAN_RESPONSE,
+    GET_ME_RESPONSE,
+    TEST_ETAG,
+    TEST_REFRESHED_ETAG,
+    TEST_THERMOWORKS_API_KEY,
 )
+from thermoworks_cloud import ApiAuthenticationError, RateLimitError, ThermoworksClient
 
 
-async def test_get_me(api_test_object):
-    api_test_object.respond_me()
-    account = await api_test_object.client.get_me()
-    assert isinstance(account, Account)
-    assert account.account_id == "account-1"
-    assert isinstance(account.api_key, ApiKeyInfo)
-    assert account.api_key.scopes == ["read:devices"]
-    assert account.api_key.device_ids is None
-    assert isinstance(account.plan, Plan)
-    assert account.plan.api_tier == "free"
-    assert isinstance(account.rate_limit, RateLimit)
-    assert account.rate_limit.per_minute == 4
-    assert account.recommended_poll_seconds == 60
+def iso_instant(datetime_input: datetime) -> str:
+    """Convert a datetime object to an ISO 8601 formatted 'instant' string.
+
+    Args:
+        datetime_input (datetime): The datetime object to convert.
+
+    Returns:
+        str: The ISO 8601 formatted string representation of the datetime object.
+    """
+    return datetime_input.isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
-async def test_get_devices(api_test_object):
-    api_test_object.respond_devices()
-    devices = await api_test_object.client.get_devices()
-    assert len(devices) == 1
-    assert devices[0].device_id == "device-1"
-    assert devices[0].signal_strength == -55
-    channels = api_test_object.client.get_device_channels("device-1")
-    assert channels[0].number == "1"
-    assert channels[0].value == 165.5
-    assert channels[0].alarm_high.value == 200
-    assert channels[0].alarm_high.units == "F"
-    assert channels[0].additional_properties["id"] == "channel-1"
-    assert channels[0].additional_properties["enabled"] is True
+class TestClient:
+    """Test class for ThermoworksClient functionality."""
 
+    async def test_get_me(
+        self, client_session: ClientSession, client_test_object: ClientTestObject
+    ):
+        """Test that get_me returns the account described by the response."""
 
-async def test_etag_uses_cached_snapshot(api_test_object):
-    api_test_object.respond_unchanged()
-    first = await api_test_object.client.get_devices()
-    second = await api_test_object.client.get_devices()
-    assert second == first
-    assert api_test_object.client.get_device_channels("device-1")[0].value == 165.5
+        # Setup
+        client_test_object.expect_get_me(TEST_THERMOWORKS_API_KEY).respond_with_json(
+            GET_ME_RESPONSE
+        )
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
 
+        # Act
+        account = await client.get_me()
 
-@pytest.mark.parametrize("status", [401, 403])
-async def test_auth_errors(api_test_object, status):
-    api_test_object.respond_error(status)
-    with pytest.raises(ApiAuthenticationError):
-        await api_test_object.client.get_devices()
+        # Assert
+        assert account.account_id == GET_ME_RESPONSE["accountId"]
+        assert account.api_key.id == GET_ME_RESPONSE["apiKey"]["id"]
+        assert account.api_key.name == GET_ME_RESPONSE["apiKey"]["name"]
+        assert account.api_key.scopes == GET_ME_RESPONSE["apiKey"]["scopes"]
+        assert account.api_key.device_ids == GET_ME_RESPONSE["apiKey"]["deviceIds"]
+        assert account.plan.id == GET_ME_RESPONSE["plan"]["id"]
+        assert account.plan.api_tier == GET_ME_RESPONSE["plan"]["apiTier"]
+        assert account.rate_limit.per_minute == GET_ME_RESPONSE["rateLimit"]["perMinute"]
+        assert account.rate_limit.per_day == GET_ME_RESPONSE["rateLimit"]["perDay"]
+        assert account.recommended_poll_seconds == GET_ME_RESPONSE["recommendedPollSeconds"]
 
+    async def test_get_me_empty_response(
+        self, client_session: ClientSession, client_test_object: ClientTestObject
+    ):
+        """Test that get_me handles a response without any of the optional fields."""
 
-async def test_rate_limit_exposes_delay(api_test_object):
-    api_test_object.respond_rate_limited()
-    with pytest.raises(RateLimitError) as error:
-        await api_test_object.client.get_devices()
-    assert error.value.retry_after == 12
+        # Setup
+        client_test_object.expect_get_me(TEST_THERMOWORKS_API_KEY).respond_with_json({})
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
 
+        # Act
+        account = await client.get_me()
 
-async def test_rate_limit_http_date(api_test_object):
-    api_test_object.respond_rate_limited_until_later()
-    with pytest.raises(RateLimitError) as error:
-        await api_test_object.client.get_devices()
-    assert 0 < error.value.retry_after <= 60
+        # Assert
+        assert account.account_id is None
+        assert account.api_key is None
+        assert account.plan is None
+        assert account.rate_limit is None
 
+    async def test_get_devices(
+        self, client_session: ClientSession, client_test_object: ClientTestObject
+    ):
+        """Test that get_devices maps the response onto the existing Device model."""
 
-async def test_missing_devices_array(api_test_object):
-    api_test_object.respond_missing_devices()
-    with pytest.raises(MalformedResponseError, match="devices array"):
-        await api_test_object.client.get_devices()
+        # Setup
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(
+            GET_DEVICES_API_RESPONSE
+        )
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
+        expected = GET_DEVICES_API_RESPONSE["devices"][0]
 
+        # Act
+        devices = await client.get_devices()
 
-@pytest.mark.parametrize("device", API_INVALID_DEVICES)
-async def test_invalid_device_data(api_test_object, device):
-    api_test_object.respond_invalid_device(device)
-    with pytest.raises(MalformedResponseError):
-        await api_test_object.client.get_devices()
+        # Assert
+        assert len(devices) == 1
+        device = devices[0]
+        assert device.device_id == expected["id"]
+        assert device.serial == expected["serial"]
+        assert device.label == expected["label"]
+        assert device.device_name == expected["model"]
+        assert device.device_display_units == expected["displayUnits"]
+        assert device.type == expected["type"]
+        assert device.firmware == expected["firmware"]
+        assert device.battery == expected["battery"]
+        assert device.battery_state == expected["batteryState"]
+        assert device.fan is None
+        assert device.wifi_strength == expected["wifiSignal"]
+        assert device.gateway_rssi is None
+        assert device.signal_strength == expected["wifiSignal"]
+        assert iso_instant(device.last_seen) == expected["lastSeen"]
+        assert device.transmit_interval_in_seconds == expected["transmitIntervalSeconds"]
+        assert device.additional_properties == {
+            "locationId": expected["locationId"],
+            "nextExpectedConnection": expected["nextExpectedConnection"],
+        }
 
+    async def test_get_devices_channels(
+        self, client_session: ClientSession, client_test_object: ClientTestObject
+    ):
+        """Test that get_devices maps nested channels onto the existing DeviceChannel model."""
 
-async def test_uncached_304(api_test_object):
-    api_test_object.expect_get_devices().respond_with_data(status=304)
-    with pytest.raises(MalformedResponseError):
-        await api_test_object.client.get_devices()
+        # Setup
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(
+            GET_DEVICES_API_RESPONSE
+        )
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
+        expected = GET_DEVICES_API_RESPONSE["devices"][0]["channels"][0]
 
+        # Act
+        devices = await client.get_devices()
 
-@pytest.mark.parametrize("status", [302, 401, 403, 429, 500])
-async def test_error_body_cannot_expose_key(api_test_object, status):
-    api_test_object.respond_error(status)
-    with pytest.raises(ApiError) as error:
-        await api_test_object.client.get_devices()
-    assert api_test_object.key not in str(error.value)
+        # Assert
+        assert len(devices[0].channels) == 1
+        channel = devices[0].channels[0]
+        assert channel.number == str(expected["number"])
+        assert channel.label == expected["label"]
+        assert channel.type == expected["type"]
+        assert channel.value == expected["value"]
+        assert channel.units == expected["units"]
+        assert channel.status == expected["status"]
+        assert iso_instant(channel.last_telemetry_saved) == expected["lastTelemetrySaved"]
+        assert iso_instant(channel.last_seen) == expected["lastSeen"]
+        assert channel.additional_properties == {
+            "id": expected["id"],
+            "enabled": expected["enabled"],
+            "alarming": expected["alarming"],
+            "probeFailed": expected["probeFailed"],
+        }
 
+    async def test_get_devices_channel_alarms_use_channel_units(
+        self, client_session: ClientSession, client_test_object: ClientTestObject
+    ):
+        """Test that alarms, which have no units in the API, get the units of their channel."""
 
-@pytest.mark.parametrize("payload", API_INVALID_ACCOUNTS)
-async def test_invalid_account_response(api_test_object, payload):
-    api_test_object.expect_get_me().respond_with_json(payload)
-    with pytest.raises(MalformedResponseError):
-        await api_test_object.client.get_me()
+        # Setup
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(
+            GET_DEVICES_API_RESPONSE
+        )
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
+        expected = GET_DEVICES_API_RESPONSE["devices"][0]["channels"][0]
 
+        # Act
+        channel = (await client.get_devices())[0].channels[0]
 
-@pytest.mark.parametrize("content_type, body", API_NON_JSON_RESPONSES)
-async def test_invalid_json(api_test_object, content_type, body):
-    api_test_object.expect_get_devices().respond_with_data(body, content_type=content_type)
-    with pytest.raises(MalformedResponseError):
-        await api_test_object.client.get_devices()
+        # Assert
+        assert channel.alarm_high.enabled == expected["alarmHigh"]["enabled"]
+        assert channel.alarm_high.alarming == expected["alarmHigh"]["alarming"]
+        assert channel.alarm_high.value == expected["alarmHigh"]["value"]
+        assert channel.alarm_high.units == expected["units"]
+        assert channel.alarm_low.enabled == expected["alarmLow"]["enabled"]
+        assert channel.alarm_low.alarming == expected["alarmLow"]["alarming"]
+        assert channel.alarm_low.value == expected["alarmLow"]["value"]
+        assert channel.alarm_low.units == expected["units"]
 
+    async def test_get_devices_channel_min_max_use_channel_units(
+        self, client_session: ClientSession, client_test_object: ClientTestObject
+    ):
+        """Test that extremes, which are bare numbers in the API, map to MinMaxReading."""
 
-async def test_mapping_preserves_meaning(api_test_object):
-    api_test_object.expect_get_devices().respond_with_json(API_MAPPING_RESPONSE)
-    device = (await api_test_object.client.get_devices())[0]
-    assert device.device_name is None
-    assert device.type == "rfx"
-    assert device.fan is None
-    assert device.additional_properties["fan"] == API_MAPPING_RESPONSE["devices"][0]["fan"]
-    channel = api_test_object.client.get_device_channels(device.device_id)[0]
-    assert channel.number is None
-    assert channel.additional_properties["id"] == "opaque-channel-id"
-    assert channel.minimum.reading.value == 0
-    assert channel.minimum.reading.units == "F"
-    assert channel.minimum.date_reading is None
-    assert channel.maximum.reading.value == 200
-    assert channel.maximum.date_reading is None
-    assert channel.last_seen.isoformat() == "2026-11-03T11:59:00+00:00"
-    assert channel.last_telemetry_saved.isoformat() == "2026-11-03T11:58:30+00:00"
+        # Setup
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(
+            GET_DEVICES_API_RESPONSE
+        )
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
+        expected = GET_DEVICES_API_RESPONSE["devices"][0]["channels"][0]
 
+        # Act
+        channel = (await client.get_devices())[0].channels[0]
 
-async def test_invalid_snapshot_does_not_replace_etag_or_cache(api_test_object):
-    api_test_object.respond_devices()
-    first = await api_test_object.client.get_devices()
-    api_test_object.expect_get_devices('"snapshot-1"').respond_with_json(
-        API_INVALID_SNAPSHOT_RESPONSE, headers={"ETag": '"snapshot-2"'}
-    )
-    with pytest.raises(MalformedResponseError):
-        await api_test_object.client.get_devices()
-    api_test_object.expect_get_devices('"snapshot-1"').respond_with_data(status=304)
-    assert await api_test_object.client.get_devices() == first
-    assert api_test_object.client.get_device_channels("device-1")[0].number == "1"
+        # Assert
+        assert channel.minimum.reading.value == expected["minimum"]
+        assert channel.minimum.reading.units == expected["units"]
+        assert channel.minimum.date_reading is None
+        assert channel.maximum.reading.value == expected["maximum"]
+        assert channel.maximum.reading.units == expected["units"]
+        assert channel.maximum.date_reading is None
 
+    async def test_get_devices_with_gateway_and_fan(
+        self, client_session: ClientSession, client_test_object: ClientTestObject
+    ):
+        """Test that gateway signal and fan accessories map onto the existing Device model."""
 
-async def test_missing_device(api_test_object):
-    api_test_object.respond_devices()
-    with pytest.raises(ResourceNotFoundError):
-        await api_test_object.client.get_device("missing")
+        # Setup
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(
+            GET_DEVICES_API_WITH_GATEWAY_AND_FAN_RESPONSE
+        )
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
+        expected = GET_DEVICES_API_WITH_GATEWAY_AND_FAN_RESPONSE["devices"][0]
 
+        # Act
+        device = (await client.get_devices())[0]
 
-@pytest.mark.parametrize("error_class", [ClientError, TimeoutError])
-async def test_transport_errors_are_redacted(api_test_object, error_class):
-    with api_test_object.fail_transport(error_class):
-        with pytest.raises(ApiError) as error:
-            await api_test_object.client.get_me()
-    assert api_test_object.key not in str(error.value)
+        # Assert
+        assert device.gateway_rssi == expected["gatewaySignal"]
+        assert device.signal_strength == expected["gatewaySignal"]
+        assert device.fan.connected == expected["fan"]["connected"]
+        assert device.fan.connection == expected["fan"]["connection"]
+        assert device.fan.fan_channel == expected["fan"]["fan_channel"]
+        assert device.fan.set_temp == expected["fan"]["setTemp"]
+        assert device.fan.state == expected["fan"]["state"]
+
+    async def test_get_devices_null_fields(
+        self, client_session: ClientSession, client_test_object: ClientTestObject
+    ):
+        """Test that null and absent fields are left unset rather than failing the request."""
+
+        # Setup
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(
+            GET_DEVICES_API_NULLS_RESPONSE
+        )
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
+
+        # Act
+        device = (await client.get_devices())[0]
+
+        # Assert
+        assert device.serial is None
+        assert device.last_seen is None
+        channel = device.channels[0]
+        assert channel.number is None
+        assert channel.alarm_high is None
+        assert channel.alarm_low is None
+        assert channel.minimum is None
+        assert channel.maximum is None
+        assert channel.last_telemetry_saved is None
+
+    async def test_get_devices_not_modified_returns_previous_devices(
+        self, client_session: ClientSession, client_test_object: ClientTestObject
+    ):
+        """Test that a 304 response to the previous ETag returns the previous devices."""
+
+        # Setup
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(
+            GET_DEVICES_API_RESPONSE, headers={"ETag": TEST_ETAG}
+        )
+        client_test_object.expect_get_devices(
+            TEST_THERMOWORKS_API_KEY, etag=TEST_ETAG
+        ).respond_with_data(status=304)
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
+        previous_devices = await client.get_devices()
+
+        # Act
+        devices = await client.get_devices()
+
+        # Assert
+        assert devices == previous_devices
+
+    async def test_get_devices_sends_latest_etag(
+        self, client_session: ClientSession, client_test_object: ClientTestObject
+    ):
+        """Test that a changed response replaces the devices and the ETag sent next."""
+
+        # Setup
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(
+            GET_DEVICES_API_RESPONSE, headers={"ETag": TEST_ETAG}
+        )
+        client_test_object.expect_get_devices(
+            TEST_THERMOWORKS_API_KEY, etag=TEST_ETAG
+        ).respond_with_json(
+            GET_DEVICES_API_WITH_GATEWAY_AND_FAN_RESPONSE, headers={"ETag": TEST_REFRESHED_ETAG}
+        )
+        client_test_object.expect_get_devices(
+            TEST_THERMOWORKS_API_KEY, etag=TEST_REFRESHED_ETAG
+        ).respond_with_data(status=304)
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
+        await client.get_devices()
+        refreshed_devices = await client.get_devices()
+
+        # Act
+        devices = await client.get_devices()
+
+        # Assert
+        assert devices == refreshed_devices
+        assert devices[0].gateway_rssi is not None
+
+    @pytest.mark.parametrize("status", [401, 403])
+    async def test_get_me_rejected_key_throws(
+        self, client_session: ClientSession, client_test_object: ClientTestObject, status: int
+    ):
+        """Test that get_me raises ApiAuthenticationError when the key is rejected."""
+
+        # Setup
+        client_test_object.expect_get_me(TEST_THERMOWORKS_API_KEY).respond_with_json(
+            ERROR_RESPONSE, status=status
+        )
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
+
+        # Act
+        with pytest.raises(ApiAuthenticationError):
+            await client.get_me()
+
+    @pytest.mark.parametrize("status", [401, 403])
+    async def test_get_devices_rejected_key_throws(
+        self, client_session: ClientSession, client_test_object: ClientTestObject, status: int
+    ):
+        """Test that get_devices raises ApiAuthenticationError when the key is rejected."""
+
+        # Setup
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(
+            ERROR_RESPONSE, status=status
+        )
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
+
+        # Act
+        with pytest.raises(ApiAuthenticationError):
+            await client.get_devices()
+
+    async def test_get_devices_rate_limited_throws(
+        self, client_session: ClientSession, client_test_object: ClientTestObject
+    ):
+        """Test that the wait requested by a 429 response is available to the caller."""
+
+        # Setup
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_data(
+            status=429, headers={"Retry-After": "12"}
+        )
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
+
+        # Act
+        with pytest.raises(RateLimitError) as error:
+            await client.get_devices()
+
+        # Assert
+        assert error.value.retry_after == 12
+
+    @pytest.mark.parametrize("status", [400, 404, 500])
+    async def test_get_me_error_throws(
+        self, client_session: ClientSession, client_test_object: ClientTestObject, status: int
+    ):
+        """Test that get_me raises a RuntimeError for any other failed response."""
+
+        # Setup
+        client_test_object.expect_get_me(TEST_THERMOWORKS_API_KEY).respond_with_data(
+            status=status, response_data=b"Error"
+        )
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
+
+        # Act
+        with pytest.raises(RuntimeError):
+            await client.get_me()
+
+    @pytest.mark.parametrize("status", [400, 404, 500])
+    async def test_get_devices_error_throws(
+        self, client_session: ClientSession, client_test_object: ClientTestObject, status: int
+    ):
+        """Test that get_devices raises a RuntimeError for any other failed response."""
+
+        # Setup
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_data(
+            status=status, response_data=b"Error"
+        )
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
+
+        # Act
+        with pytest.raises(RuntimeError):
+            await client.get_devices()

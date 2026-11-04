@@ -5,12 +5,12 @@ from aiohttp import ClientSession
 import pytest
 from pytest_httpserver import HTTPServer
 
+from tests.client_test_object import ClientTestObject
 from tests.core_test_object import CoreTestObject
 from tests.test_data import CONFIG_RETURN_VALUE
 from tests.test_data import LOGIN_RETURN_VALUE, TEST_EMAIL_ADDRESS, TEST_PASSWORD
 from tests.auth_test_object import AuthTestObject
 from thermoworks_cloud.auth import _TokenManager, Auth, AuthFactory
-from tests.api_test_object import ApiTestObject
 
 
 @pytest.fixture(autouse=True, name="httpserver_endpoint")
@@ -76,13 +76,7 @@ def core_test_object(httpserver: HTTPServer, auth: Auth) -> CoreTestObject:
     return CoreTestObject(httpserver, auth)
 
 
-@pytest.fixture
-def api_test_object(httpserver, client_session) -> ApiTestObject:
-    """Provide the API HTTP TestObject and its configured client."""
-    return ApiTestObject(httpserver, client_session)
-
-
-@pytest.fixture(params=["firebase", "api"])
-def client_test_object(request, core_test_object, api_test_object):
-    """Run the shared public-interface contracts with each transport TestObject."""
-    return core_test_object if request.param == "firebase" else api_test_object
+@pytest.fixture()
+def client_test_object(httpserver: HTTPServer) -> ClientTestObject:
+    """Provide a ClientTestObject for use in component tests."""
+    return ClientTestObject(httpserver)

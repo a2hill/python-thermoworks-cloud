@@ -26,12 +26,13 @@ async def _get_device_from_response(
     return await ThermoworksCloud(auth).get_device(TEST_DEVICE_ID_0)
 
 
-async def test_get_device_with_gateway_rssi(client_test_object):
-    """Test the same gateway RSSI contract with each transport."""
-    client_test_object.expect_get_device(
-        access_token=TEST_ID_TOKEN, device_serial=TEST_DEVICE_ID_0
-    ).respond_with_json(client_test_object.gateway_device_response)
-    device = await client_test_object.client.get_device(TEST_DEVICE_ID_0)
+async def test_get_device_with_gateway_rssi(
+    auth: Auth, core_test_object: CoreTestObject
+):
+    """Test parsing gateway RSSI from an RFX meat probe device."""
+    device = await _get_device_from_response(
+        auth, core_test_object, GET_DEVICE_WITH_GATEWAY_RSSI_RESPONSE
+    )
 
     assert device.gateway_rssi == -55
     assert device.signal_strength == -55
@@ -40,7 +41,9 @@ async def test_get_device_with_gateway_rssi(client_test_object):
 
 async def test_get_device_with_fan(auth: Auth, core_test_object: CoreTestObject):
     """Test parsing a connected fan accessory from a device."""
-    device = await _get_device_from_response(auth, core_test_object, GET_DEVICE_WITH_FAN_RESPONSE)
+    device = await _get_device_from_response(
+        auth, core_test_object, GET_DEVICE_WITH_FAN_RESPONSE
+    )
 
     assert device.fan is not None
     assert device.fan.connected is True
@@ -72,7 +75,9 @@ async def test_get_device_fan_state_name(
     assert device.fan.state_name == state_name
 
 
-async def test_get_device_with_disconnected_fan(auth: Auth, core_test_object: CoreTestObject):
+async def test_get_device_with_disconnected_fan(
+    auth: Auth, core_test_object: CoreTestObject
+):
     """Test parsing a fan accessory when it is present but disconnected."""
     device = await _get_device_from_response(
         auth, core_test_object, GET_DEVICE_WITH_DISCONNECTED_FAN_RESPONSE

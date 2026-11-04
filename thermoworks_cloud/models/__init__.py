@@ -7,6 +7,7 @@ from .user import DeviceOrderItem, EmailLastEvent, User
 from .account import Account, ApiKeyInfo, Plan, RateLimit
 
 
-__all__ = ["Account", "ApiKeyInfo", "Plan", "RateLimit", "ArchiveData", "ArchiveMetadata", "ArchivePage", "ArchiveReading",
+__all__ = ["Account", "ApiKeyInfo", "Plan", "RateLimit",
+           "ArchiveData", "ArchiveMetadata", "ArchivePage", "ArchiveReading",
            "Device", "BigQueryInfo", "Fan", "Alarm",
            "DeviceChannel", "MinMaxReading", "Reading", "DeviceOrderItem", "EmailLastEvent", "User"]

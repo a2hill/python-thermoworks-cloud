@@ -1,75 +1,64 @@
-"""Account and API-key metadata returned by the API's /me endpoint."""
+"""Classes related to an Account."""
 
 from dataclasses import dataclass
-
-from thermoworks_cloud.utils import _object, _field
+from typing import List, Optional
 
 
 @dataclass
 class ApiKeyInfo:
-    """Metadata about a key, excluding its secret value."""
+    """ApiKeyInfo contains metadata about an API key. It never contains the key itself."""
 
-    id: str | None = None
-    name: str | None = None
-    scopes: list[str] | None = None
-    device_ids: list[str] | None = None
+    id: Optional[str] = None
+    name: Optional[str] = None
+    scopes: Optional[List[str]] = None
+    device_ids: Optional[List[str]] = None
 
 
 @dataclass
 class Plan:
-    """Account plan and API access tier."""
+    """Plan contains information about an account's plan."""
 
-    id: str | None = None
-    api_tier: str | None = None
+    id: Optional[str] = None
+    api_tier: Optional[str] = None
 
 
 @dataclass
 class RateLimit:
-    """Request budgets advertised by the service."""
+    """RateLimit contains the number of requests an API key can make."""
 
-    per_minute: int | None = None
-    per_day: int | None = None
+    per_minute: Optional[int] = None
+    per_day: Optional[int] = None
 
 
 @dataclass
 class Account:
-    """API account metadata; distinct from a Firebase user profile."""
+    """Account contains information about the account an API key belongs to."""
 
-    account_id: str
-    api_key: ApiKeyInfo | None = None
-    plan: Plan | None = None
-    rate_limit: RateLimit | None = None
-    recommended_poll_seconds: int | None = None
-
-
-def _strings(data: dict, name: str) -> list[str] | None:
-    value = _field(data, name, list)
-    if value is not None and any(not isinstance(item, str) for item in value):
-        raise ValueError(f"Invalid API field: {name}")
-    return value
+    account_id: Optional[str] = None
+    api_key: Optional[ApiKeyInfo] = None
+    plan: Optional[Plan] = None
+    rate_limit: Optional[RateLimit] = None
+    recommended_poll_seconds: Optional[int] = None
 
 
-def _api_to_account(payload: dict) -> Account:
-    """Convert /me JSON using the same model-converter boundary as Firebase."""
-    data = _object(payload)
-    account = Account(
-        account_id=_field(data, "accountId", str, required=True),
-        recommended_poll_seconds=_field(data, "recommendedPollSeconds", int),
+def _json_to_account(data: dict) -> Account:
+    """Convert a response from the `/v1/me` API into an Account object."""
+    api_key = data.get("apiKey")
+    plan = data.get("plan")
+    rate_limit = data.get("rateLimit")
+
+    return Account(
+        account_id=data.get("accountId"),
+        api_key=ApiKeyInfo(
+            id=api_key.get("id"),
+            name=api_key.get("name"),
+            scopes=api_key.get("scopes"),
+            device_ids=api_key.get("deviceIds"),
+        ) if api_key else None,
+        plan=Plan(id=plan.get("id"), api_tier=plan.get("apiTier")) if plan else None,
+        rate_limit=RateLimit(
+            per_minute=rate_limit.get("perMinute"),
+            per_day=rate_limit.get("perDay"),
+        ) if rate_limit else None,
+        recommended_poll_seconds=data.get("recommendedPollSeconds"),
     )
-    if data.get("apiKey") is not None:
-        key = _object(data["apiKey"])
-        account.api_key = ApiKeyInfo(
-            id=_field(key, "id", str),
-            name=_field(key, "name", str),
-            scopes=_strings(key, "scopes"),
-            device_ids=_strings(key, "deviceIds"),
-        )
-    if data.get("plan") is not None:
-        plan = _object(data["plan"])
-        account.plan = Plan(id=_field(plan, "id", str), api_tier=_field(plan, "apiTier", str))
-    if data.get("rateLimit") is not None:
-        limits = _object(data["rateLimit"])
-        account.rate_limit = RateLimit(
-            per_minute=_field(limits, "perMinute", int), per_day=_field(limits, "perDay", int)
-        )
-    return account

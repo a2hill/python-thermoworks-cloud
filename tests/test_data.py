@@ -3,64 +3,6 @@
 from copy import deepcopy
 import json
 
-API_DEVICE_RESPONSE = {
-    "generatedAt": "2026-11-03T12:00:00Z",
-    "devices": [
-        {
-            "id": "device-1",
-            "serial": "serial-1",
-            "label": "Kitchen",
-            "type": "NODE",
-            "model": "NODE",
-            "battery": 87,
-            "wifiSignal": -50,
-            "gatewaySignal": -55,
-            "lastSeen": "2026-11-03T11:59:00Z",
-            "transmitIntervalSeconds": 60,
-            "channels": [
-                {
-                    "id": "channel-1",
-                    "number": 1,
-                    "label": "Food",
-                    "type": "temperature",
-                    "enabled": True,
-                    "value": 165.5,
-                    "units": "F",
-                    "status": "NORMAL",
-                    "probeFailed": False,
-                    "alarming": False,
-                    "lastTelemetrySaved": "2026-11-03T11:58:30Z",
-                    "alarmHigh": {"enabled": True, "value": 200, "alarming": False},
-                    "alarmLow": None,
-                }
-            ],
-        }
-    ],
-}
-
-API_TEST_KEY = "twk_test"
-API_ME_RESPONSE = {
-    "accountId": "account-1",
-    "apiKey": {"id": "key-1", "name": "HA", "scopes": ["read:devices"], "deviceIds": None},
-    "plan": {"id": None, "apiTier": "free"},
-    "rateLimit": {"perMinute": 4, "perDay": 3000},
-    "recommendedPollSeconds": 60,
-}
-API_MISSING_DEVICES_RESPONSE = {"generatedAt": "2026-11-03T12:00:00Z"}
-API_INVALID_DEVICES = [
-    None, [], {"id": "a", "channels": [None]},
-    {"id": "a", "channels": [], "lastSeen": 123},
-    {"serial": "must-not-replace-id", "channels": []},
-    {"id": "", "channels": []}, {"id": 123, "channels": []},
-]
-API_INVALID_ACCOUNTS = [[], {}, {"accountId": None}]
-API_INVALID_ACCOUNTS.extend([
-    {"accountId": "account-1", "apiKey": []},
-    {"accountId": "account-1", "rateLimit": {"perDay": "not-an-integer"}},
-])
-API_INVALID_SNAPSHOT_RESPONSE = {"devices": [{"serial": "not-an-id", "channels": []}]}
-API_NON_JSON_RESPONSES = [("application/json", "not json"), ("text/html", "<html>Error</html>")]
-
 # Paths used by the AuthFactory to setup an authentication object
 LOGIN_PATH = "/v1/accounts:signInWithPassword"
 WEB_CONFIG_PATH = (
@@ -118,36 +60,6 @@ TOKEN_REFRESH_RETURN_VALUE = {
 
 TEST_DEVICE_ID_0 = "12:34:56:78:90:AB"
 TEST_DEVICE_ID_1 = "CD:EF:12:34:56:78"
-
-# Alternate wire representations of the existing public-interface scenarios.
-API_GATEWAY_RESPONSE = {"devices": [{
-    "id": TEST_DEVICE_ID_0, "serial": TEST_DEVICE_ID_0,
-    "type": "rfx", "model": "rfx meat", "gatewaySignal": -55, "channels": [],
-}]}
-API_SIGNALS_RESPONSE = {"devices": [{
-    "id": "test_device_serial", "serial": "test_device_serial", "channels": [{
-        "id": "1", "number": 1, "value": 69.8, "units": "F",
-        "type": "pro series", "status": "NORMAL", "enabled": True,
-        "alarming": False, "probeFailed": False,
-    }],
-}]}
-API_MAPPING_RESPONSE = deepcopy(API_DEVICE_RESPONSE)
-API_MAPPING_RESPONSE["devices"][0].pop("model")
-API_MAPPING_RESPONSE["devices"][0]["type"] = "rfx"
-API_MAPPING_RESPONSE["devices"][0]["fan"] = {"connected": True}
-API_MAPPING_RESPONSE["devices"][0]["channels"][0].update({
-    "id": "opaque-channel-id", "number": None, "minimum": 0, "maximum": 200,
-    "lastSeen": "2026-11-03T11:59:00Z",
-})
-API_INVALID_CHANNEL_DEVICES = []
-for _field_name, _invalid_value in (
-    ("id", None), ("number", "1"), ("enabled", None),
-    ("alarmHigh", []), ("lastSeen", 123), ("lastSeen", "2026-11-03T11:00:00"),
-):
-    _invalid_device = deepcopy(API_DEVICE_RESPONSE["devices"][0])
-    _invalid_device["channels"][0][_field_name] = _invalid_value
-    API_INVALID_CHANNEL_DEVICES.append(_invalid_device)
-API_INVALID_DEVICES.extend(API_INVALID_CHANNEL_DEVICES)
 
 # Actual response value structure
 USER_RESPONSE = json.loads(
@@ -1048,3 +960,120 @@ GET_DEVICE_ARCHIVE_DATA_RESPONSE = {
         ["1", 1704070800000, 33.2, "F"]
     ]
 }
+
+# API key sent to the ThermoWorks API, which is not the Firebase `API_KEY` above
+TEST_THERMOWORKS_API_KEY = "twk_test_key_id_test_secret"
+TEST_ETAG = 'W/"test-etag"'
+TEST_REFRESHED_ETAG = 'W/"test-refreshed-etag"'
+
+# Shape from the API documentation. No response has been captured for this endpoint.
+GET_ME_RESPONSE = json.loads(
+    """
+{
+  "accountId": "test-account-id",
+  "apiKey": {
+    "id": "test-key-id",
+    "name": "Home Assistant",
+    "scopes": ["read:devices"],
+    "deviceIds": null
+  },
+  "plan": { "id": null, "apiTier": "free" },
+  "rateLimit": { "perMinute": 4, "perDay": 3000 },
+  "recommendedPollSeconds": 60
+}"""
+)
+
+# Actual response value structure
+GET_DEVICES_API_RESPONSE = json.loads(
+    """
+{
+  "generatedAt": "2026-11-04T04:43:49.806Z",
+  "devices": [
+    {
+      "id": "12:34:56:78:90:AB",
+      "serial": "12:34:56:78:90:AB",
+      "label": "NODE",
+      "model": "node",
+      "displayUnits": "F",
+      "type": "datalogger",
+      "firmware": "2.1.8-30",
+      "locationId": null,
+      "battery": 100,
+      "batteryState": "discharging",
+      "fan": null,
+      "wifiSignal": -59,
+      "gatewaySignal": null,
+      "lastSeen": "2026-11-04T03:54:28.717Z",
+      "nextExpectedConnection": null,
+      "transmitIntervalSeconds": 3600,
+      "channels": [
+        {
+          "id": "1",
+          "number": 1,
+          "label": "Freezer",
+          "type": "Pro-Series",
+          "enabled": true,
+          "value": -10.300000190734863,
+          "units": "F",
+          "status": "NORMAL",
+          "probeFailed": false,
+          "alarming": false,
+          "alarmHigh": { "enabled": true, "value": 20, "alarming": false },
+          "alarmLow": { "enabled": true, "value": -12, "alarming": false },
+          "minimum": -13,
+          "maximum": 69.5,
+          "lastTelemetrySaved": "2026-11-04T03:55:17.000Z",
+          "lastSeen": "2026-11-04T03:54:28.717Z"
+        }
+      ]
+    }
+  ]
+}"""
+)
+
+# The actual response with every documented nullable field set to null, or absent, to show that
+# a device or channel without them still parses.
+GET_DEVICES_API_NULLS_RESPONSE = json.loads(
+    """
+{
+  "generatedAt": "2026-11-04T04:43:49.806Z",
+  "devices": [
+    {
+      "id": "12:34:56:78:90:AB",
+      "serial": null,
+      "lastSeen": null,
+      "channels": [
+        {
+          "id": "1",
+          "number": null,
+          "enabled": true,
+          "alarming": false,
+          "probeFailed": false,
+          "alarmHigh": null,
+          "alarmLow": null,
+          "minimum": null,
+          "maximum": null,
+          "lastTelemetrySaved": null
+        }
+      ]
+    }
+  ]
+}"""
+)
+
+# The actual response for a device reporting through a gateway with a connected fan. The fan's
+# fields are assumed to match Firebase, see GET_DEVICE_WITH_FAN_RESPONSE, because no response
+# with a fan has been captured.
+GET_DEVICES_API_WITH_GATEWAY_AND_FAN_RESPONSE = deepcopy(GET_DEVICES_API_RESPONSE)
+GET_DEVICES_API_WITH_GATEWAY_AND_FAN_RESPONSE["devices"][0].update({
+    "gatewaySignal": -55,
+    "fan": {
+        "connected": True,
+        "connection": True,
+        "fan_channel": "1",
+        "setTemp": 150,
+        "state": 1,
+    },
+})
+
+ERROR_RESPONSE = {"error": {"code": "invalid_api_key", "message": "Invalid API key"}}

@@ -1,182 +1,123 @@
-"""Client for the ThermoWorks Cloud API."""
+"""Accessor for the ThermoWorks Cloud API."""
 
-from datetime import datetime, timezone
-from email.utils import parsedate_to_datetime
 from http import HTTPStatus
-import json
-import math
+from typing import Dict, List, Optional
 
-from aiohttp import ClientError, ClientResponse, ClientSession, ClientTimeout, ContentTypeError
+from aiohttp import ClientResponse, ClientSession
 
-from .core import ResourceNotFoundError
-from .models.account import Account, _api_to_account
-from .models.device import Device, _api_to_device
-from .models.device_channel import DeviceChannel, _api_to_device_channel
+from thermoworks_cloud.utils import format_client_response
 
-
-class ApiError(RuntimeError):
-    """Base error for the ThermoWorks API."""
+from .models.account import Account, _json_to_account
+from .models.device import Device, _json_to_device
 
 
-class MalformedResponseError(ApiError):
-    """The service returned an invalid response."""
+class ApiAuthenticationError(Exception):
+    """Custom exception indicating that the API key was rejected."""
 
+    def __init__(self, message: str) -> None:
+        """Initialize the error."""
 
-class ApiAuthenticationError(ApiError):
-    """The API key was rejected."""
-
-
-class RateLimitError(ApiError):
-    """The API requested that the caller wait before retrying."""
-
-    def __init__(self, message: str, retry_after: float | None = None) -> None:
         super().__init__(message)
+        self.message = message
+
+
+class RateLimitError(RuntimeError):
+    """Custom exception indicating that the API key has used up its request budget."""
+
+    def __init__(self, message: str, retry_after: Optional[int] = None) -> None:
+        """Initialize the error.
+
+        Args:
+            message (str): A description of the error.
+            retry_after (int | None): Seconds to wait before retrying, if the service said.
+        """
+
+        super().__init__(message)
+        self.message = message
         self.retry_after = retry_after
 
 
 class ThermoworksClient:
-    """Read devices with an API key and a provider-supplied endpoint."""
+    """Client for the ThermoWorks Cloud API.
+
+    Requests count against a per-key rate limit, so `get_devices` is the only device read:
+    it returns every device with its channels in a single request.
+    """
 
     def __init__(self, websession: ClientSession, api_key: str, base_url: str) -> None:
-        if not api_key or not api_key.strip():
-            raise ValueError("api_key cannot be empty")
-        if not base_url or not base_url.strip():
-            raise ValueError("base_url cannot be empty")
+        """Create a new client.
+
+        Args:
+            websession (ClientSession): The HTTP client used to make requests.
+            api_key (str): An API key from the ThermoWorks Cloud web app.
+            base_url (str): The root URL of the API. This differs between cloud providers.
+        """
         self._websession = websession
-        self._api_key = api_key.strip()
+        self._api_key = api_key
         self._base_url = base_url.rstrip("/")
-        self._etag: str | None = None
-        self._devices: list[Device] | None = None
-        self._channels: dict[str, list[DeviceChannel]] = {}
+        self._etag: Optional[str] = None
+        self._devices: Optional[List[Device]] = None
 
     async def get_me(self) -> Account:
-        """Fetch account metadata and validate the API key."""
-        response = await self._request("/v1/me")
-        try:
-            if response.ok and response.status != HTTPStatus.NOT_MODIFIED:
-                payload = await response.json()
-                return _api_to_account(payload)
-            raise MalformedResponseError("Unexpected empty account response")
-        except (ContentTypeError, json.JSONDecodeError):
-            raise MalformedResponseError("ThermoWorks API returned invalid JSON") from None
-        except ValueError:
-            # Converters raise ValueError only for explicitly validated API fields.
-            raise MalformedResponseError("Invalid account data in API response") from None
-        except (ClientError, TimeoutError):
-            raise ApiError("Unable to read the ThermoWorks API response") from None
-        finally:
-            response.release()
+        """Fetch information about the account and API key."""
 
-    async def get_devices(self) -> list[Device]:
-        """Fetch one device/channel snapshot; retain it when the ETag is unchanged."""
-        headers = {"If-None-Match": self._etag} if self._etag else None
-        response = await self._request("/v1/devices", headers)
-        try:
-            # Unlike a successful JSON response, a conditional 304 has no body.
-            if response.status == HTTPStatus.NOT_MODIFIED:
-                if self._devices is None:
-                    raise MalformedResponseError(
-                        "API returned 304 without a cached device snapshot"
-                    )
-                return self._devices
-            if response.ok:
-                payload = await response.json()
-                if not isinstance(payload, dict) or not isinstance(payload.get("devices"), list):
-                    raise MalformedResponseError("API response is missing its devices array")
-                devices: list[Device] = []
-                channels: dict[str, list[DeviceChannel]] = {}
-                for raw_device in payload["devices"]:
-                    device = _api_to_device(raw_device)
-                    raw_channels = raw_device.get("channels")
-                    if not isinstance(raw_channels, list):
-                        raise ValueError("Device channels must be an array")
-                    if device.device_id in channels:
-                        raise ValueError("Duplicate device ID")
-                    channels[device.device_id] = [
-                        _api_to_device_channel(channel) for channel in raw_channels
-                    ]
-                    devices.append(device)
-                # Commit the ETag and models together, only after the entire response validates.
-                self._etag = response.headers.get("ETag")
-                self._devices = devices
-                self._channels = channels
-                return devices
-            raise ApiError("Unable to fetch devices")
-        except (ContentTypeError, json.JSONDecodeError):
-            raise MalformedResponseError("ThermoWorks API returned invalid JSON") from None
-        except ValueError:
-            raise MalformedResponseError("Invalid device data in API response") from None
-        except (ClientError, TimeoutError):
-            raise ApiError("Unable to read the ThermoWorks API response") from None
-        finally:
-            response.release()
+        response = await self._request("v1/me")
+        if response.ok:
+            account_json = await response.json()
+            return _json_to_account(account_json)
 
-    def get_device_channels(self, device_identifier: str) -> list[DeviceChannel]:
-        """Return channels for an authoritative API device ID from the latest snapshot."""
-        return self._channels.get(device_identifier, [])
+        raise await self._response_error("Failed to get account", response)
 
-    async def get_device(self, device_serial: str) -> Device:
-        """Fetch a device by serial or ID through the existing client interface."""
-        for device in await self.get_devices():
-            if device.serial == device_serial or device.device_id == device_serial:
-                return device
-        raise ResourceNotFoundError("Device not found")
+    async def get_devices(self) -> List[Device]:
+        """Fetch all devices visible to the API key, including their channels.
 
-    async def get_device_channel(self, device_serial: str, channel: str) -> DeviceChannel:
-        """Fetch a channel by its legacy channel number."""
-        device = await self.get_device(device_serial)
-        for device_channel in self.get_device_channels(device.device_id):
-            if device_channel.number == str(channel):
-                return device_channel
-        raise ResourceNotFoundError("Device channel not found")
-
-    async def _request(self, path: str, headers: dict[str, str] | None = None) -> ClientResponse:
-        """Return the aiohttp response, matching the existing client's request boundary.
-
-        Callers own JSON decoding, model conversion, and response release. Error
-        responses are released here; response bodies and transport exception text
-        are deliberately excluded from errors because either may contain credentials.
+        Sends the ETag of the previous response, which the service can answer with
+        `304 Not Modified` to indicate that the previous devices are still current.
         """
-        request_headers = {"Authorization": f"Bearer {self._api_key}", "Accept": "application/json"}
-        if headers:
-            request_headers.update(headers)
-        try:
-            response = await self._websession.request(
-                "get",
-                f"{self._base_url}{path}",
-                headers=request_headers,
-                timeout=ClientTimeout(total=30),
-                allow_redirects=False,
-            )
-        except (ClientError, TimeoutError):
-            raise ApiError("Unable to reach the ThermoWorks API") from None
+
+        headers = {"If-None-Match": self._etag} if self._etag else None
+        response = await self._request("v1/devices", additional_headers=headers)
+
         if response.status == HTTPStatus.NOT_MODIFIED:
-            return response
-        if response.ok and response.status < HTTPStatus.MULTIPLE_CHOICES:
-            return response
-        try:
-            if response.status in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN):
-                raise ApiAuthenticationError("ThermoWorks API key was rejected")
-            if response.status == HTTPStatus.TOO_MANY_REQUESTS:
-                raise RateLimitError(
-                    "ThermoWorks API rate limit exceeded",
-                    _retry_after(response.headers.get("Retry-After")),
-                )
-            raise ApiError(f"ThermoWorks API returned HTTP {response.status}")
-        finally:
-            response.release()
+            return self._devices
 
+        if response.ok:
+            devices_json = await response.json()
+            self._devices = [_json_to_device(device) for device in devices_json["devices"]]
+            self._etag = response.headers.get("ETag")
+            return self._devices
 
-def _retry_after(value: str | None) -> float | None:
-    if value is None:
-        return None
-    try:
-        seconds = float(value)
-        return max(0.0, seconds) if math.isfinite(seconds) else None
-    except ValueError:
-        try:
-            return max(
-                0.0, (parsedate_to_datetime(value) - datetime.now(timezone.utc)).total_seconds()
+        raise await self._response_error("Failed to get devices", response)
+
+    async def _request(
+        self, path: str, additional_headers: Optional[Dict[str, str]] = None
+    ) -> ClientResponse:
+        """Make an authenticated request."""
+
+        headers = {"authorization": f"Bearer {self._api_key}"}
+        if additional_headers:
+            headers.update(additional_headers)
+
+        return await self._websession.request(
+            "get", f"{self._base_url}/{path}", headers=headers
+        )
+
+    async def _response_error(self, message: str, response: ClientResponse) -> Exception:
+        """Build the exception for a failed response."""
+
+        if response.status in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN):
+            return ApiAuthenticationError("The API key was rejected")
+
+        if response.status == HTTPStatus.TOO_MANY_REQUESTS:
+            retry_after = response.headers.get("Retry-After")
+            return RateLimitError(
+                "The API key's rate limit was exceeded",
+                int(retry_after) if retry_after else None,
             )
-        except (TypeError, ValueError, OverflowError):
-            return None
+
+        try:
+            error_response = await format_client_response(response)
+        except RuntimeError:
+            error_response = "Could not read response body."
+
+        return RuntimeError(f"{message}: {error_response}")

@@ -4,8 +4,12 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, Dict
 
-from thermoworks_cloud.utils import parse_datetime, map_firestore_fields, parse_nested_object
-from thermoworks_cloud.utils import _object, _field, _timestamp, _additional
+from thermoworks_cloud.utils import (
+    parse_datetime,
+    parse_optional_datetime,
+    map_firestore_fields,
+    parse_nested_object,
+)
 
 
 @dataclass
@@ -53,6 +57,10 @@ class DeviceChannel:  # pylint: disable=too-many-instance-attributes
     """A device channel on a device.
 
     All fields are optional as different device types may have different properties.
+
+    Deprecated: `show_avg_temp` and `MinMaxReading.date_reading` only exist in Firebase.
+    `ThermoworksClient` leaves them unset, and they will be removed along with the Firebase
+    implementation once the EU API is available.
     """
 
     last_telemetry_saved: Optional[datetime] = field(
@@ -156,40 +164,74 @@ def _document_to_device_channel(document: dict) -> DeviceChannel:
     return device_channel
 
 
-def _api_to_device_channel(payload: dict) -> DeviceChannel:
-    """Map API readings without inventing channel numbers or extrema timestamps."""
-    data = _object(payload)
-    _field(data, "id", str, required=True)
-    number = _field(data, "number", int)
-    units = _field(data, "units", str)
-    channel = DeviceChannel(
-        # id identifies the API channel; only number has the legacy channel-number meaning.
-        number=str(number) if number is not None else None,
-        label=_field(data, "label", str), type=_field(data, "type", str),
-        value=_field(data, "value", (int, float)), units=units,
-        status=_field(data, "status", str),
-        last_seen=_timestamp(data, "lastSeen"),
-        last_telemetry_saved=_timestamp(data, "lastTelemetrySaved"),
+def _json_to_alarm(data: Optional[dict], units: Optional[str]) -> Optional[Alarm]:
+    """Convert an alarm from the ThermoWorks API into an Alarm object.
+
+    Unlike Firebase, API alarms have no units of their own. They use the units of their channel.
+    """
+    if not data:
+        return None
+
+    return Alarm(
+        enabled=data.get("enabled"),
+        alarming=data.get("alarming"),
+        value=data.get("value"),
+        units=units,
     )
-    for name, target in (("alarmHigh", "alarm_high"), ("alarmLow", "alarm_low")):
-        if data.get(name) is not None:
-            alarm = _object(data[name])
-            # The API alarm omits units; its threshold uses the parent channel units.
-            setattr(channel, target, Alarm(
-                enabled=_field(alarm, "enabled", bool),
-                alarming=_field(alarm, "alarming", bool),
-                value=_field(alarm, "value", (int, float)), units=units,
-            ))
-    for name in ("minimum", "maximum"):
-        value = _field(data, name, (int, float))
-        if value is not None:
-            # API extrema have values but no occurrence times. Keep date_reading=None.
-            setattr(channel, name, MinMaxReading(reading=Reading(value=value, units=units)))
-    channel.additional_properties = _additional(data, {
-        "number", "label", "type", "value", "units", "status", "lastSeen",
-        "lastTelemetrySaved", "alarmHigh", "alarmLow", "minimum", "maximum",
-    })
-    # These API flags have no dedicated legacy fields, but their types are documented.
-    for name in ("enabled", "alarming", "probeFailed"):
-        _field(data, name, bool, required=True)
-    return channel
+
+
+def _json_to_min_max_reading(
+    value: Optional[float], units: Optional[str]
+) -> Optional[MinMaxReading]:
+    """Convert a minimum or maximum from the ThermoWorks API into a MinMaxReading object.
+
+    Unlike Firebase, the API only provides the value, so `date_reading` is left unset.
+    """
+    if value is None:
+        return None
+
+    return MinMaxReading(reading=Reading(value=value, units=units))
+
+
+def _json_to_device_channel(data: dict) -> DeviceChannel:
+    """Convert a channel from the ThermoWorks API into a DeviceChannel object.
+
+    Firebase only has `number`. `id` has been observed to be the same number as a string, but it
+    is kept in `additional_properties` along with the other API fields that have no Firebase
+    equivalent: `enabled`, `alarming` and `probeFailed`.
+    """
+    known_fields = {
+        "number",
+        "label",
+        "type",
+        "value",
+        "units",
+        "status",
+        "alarmHigh",
+        "alarmLow",
+        "minimum",
+        "maximum",
+        "lastTelemetrySaved",
+        "lastSeen",
+    }
+    additional_properties = {
+        key: value for key, value in data.items() if key not in known_fields
+    }
+    number = data.get("number")
+    units = data.get("units")
+
+    return DeviceChannel(
+        number=str(number) if number is not None else None,
+        label=data.get("label"),
+        type=data.get("type"),
+        value=data.get("value"),
+        units=units,
+        status=data.get("status"),
+        alarm_high=_json_to_alarm(data.get("alarmHigh"), units),
+        alarm_low=_json_to_alarm(data.get("alarmLow"), units),
+        minimum=_json_to_min_max_reading(data.get("minimum"), units),
+        maximum=_json_to_min_max_reading(data.get("maximum"), units),
+        last_telemetry_saved=parse_optional_datetime(data.get("lastTelemetrySaved")),
+        last_seen=parse_optional_datetime(data.get("lastSeen")),
+        additional_properties=additional_properties or None,
+    )

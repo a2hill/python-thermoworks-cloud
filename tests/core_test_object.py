@@ -7,18 +7,12 @@ from tests.test_data import (
     API_KEY,
     FIREBASE_APPLICATION_BASE_PATH,
     TEST_USER_ID,
-    GET_DEVICE_WITH_GATEWAY_RSSI_RESPONSE,
-    GET_SIGNALS_CHANNEL_RESPONSE,
 )
-from thermoworks_cloud import ThermoworksCloud
 from thermoworks_cloud.auth import _Auth, Auth
 
 
 class CoreTestObject:
     """A test object that can be used to mock Thermoworks Cloud related API calls."""
-
-    gateway_device_response = GET_DEVICE_WITH_GATEWAY_RSSI_RESPONSE
-    signals_channel_response = GET_SIGNALS_CHANNEL_RESPONSE
 
     def __init__(self, httpserver: HTTPServer, auth: Auth) -> None:
         """Create a new test object for the Core module
@@ -29,7 +23,6 @@ class CoreTestObject:
         """
         self.httpserver = httpserver
         self.auth = cast(_Auth, auth)
-        self.client = ThermoworksCloud(auth)
 
     def expect_get_user(self, access_token: str) -> RequestHandler:
         """Create a request handler for a GET request to the `get_user` API."""

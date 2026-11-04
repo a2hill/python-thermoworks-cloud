@@ -6,8 +6,6 @@ from tests.test_data import (
     GET_SIGNALS_CHANNEL_RESPONSE,
     TEST_ID_TOKEN,
 )
-import pytest
-
 from thermoworks_cloud import ThermoworksCloud
 from thermoworks_cloud.auth import Auth
 
@@ -26,7 +24,9 @@ async def _get_channel_from_response(
     return await thermoworks_cloud.get_device_channel("test_device_serial", "1")
 
 
-async def test_get_rfx_air_probe_channel_alarms(auth: Auth, core_test_object: CoreTestObject):
+async def test_get_rfx_air_probe_channel_alarms(
+    auth: Auth, core_test_object: CoreTestObject
+):
     """Test parsing RFX Air Probe alarms."""
     channel = await _get_channel_from_response(
         auth, core_test_object, GET_RFX_AIR_PROBE_CHANNEL_RESPONSE
@@ -52,12 +52,13 @@ async def test_get_rfx_air_probe_channel_alarms(auth: Auth, core_test_object: Co
     )
 
 
-async def test_get_signals_channel(client_test_object):
-    """Test the same channel-number and reading contract with each transport."""
-    client_test_object.expect_get_device_channel(
-        access_token=TEST_ID_TOKEN, device_serial="test_device_serial", channel="1"
-    ).respond_with_json(client_test_object.signals_channel_response)
-    channel = await client_test_object.client.get_device_channel("test_device_serial", "1")
+async def test_get_signals_channel(
+    auth: Auth, core_test_object: CoreTestObject
+):
+    """Test parsing a Signals channel with an integer channel number."""
+    channel = await _get_channel_from_response(
+        auth, core_test_object, GET_SIGNALS_CHANNEL_RESPONSE
+    )
 
     assert channel.number == "1"
     assert channel.value == 69.8
