@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import IntEnum
 from typing import ClassVar, List, Optional, Dict, TypedDict
 
 from thermoworks_cloud.utils import (
@@ -63,6 +64,14 @@ class BigQueryInfo:
         default=None, metadata={"firestore_type": "stringValue"})
     dataset_id: Optional[str] = field(
         default=None, metadata={"firestore_type": "stringValue"})
+
+
+class FanState(IntEnum):
+    """Named values for comparison with the existing integer fan state."""
+
+    PAUSED = 0
+    BLOWING = 1
+    PULSING = 2
 
 
 @dataclass
@@ -252,8 +261,10 @@ def _document_to_device(document: dict) -> Device:
 def _json_to_fan(data: _FanResponse) -> Fan:
     """Convert a fan from the ThermoWorks API into a Fan object.
 
-    The API documentation does not cover `fan` and no response with a connected fan has been
-    captured yet. These field names come from the mapping in ha-thermoworks-cloud pull request 47.
+    The API documentation does not cover `fan`. RFX captures with Billows disconnected,
+    paused, blowing and pulsing confirm these fields in ha-thermoworks-cloud issue #46:
+    https://github.com/a2hill/ha-thermoworks-cloud/issues/46#issuecomment-6633438207
+    A disconnected fan still reports its channel, setpoint and state; retain them as reported.
     Unlike Firebase, the API has no separate `connection` field.
     """
     known_fields = {"connected", "channel", "setTemp", "state"}

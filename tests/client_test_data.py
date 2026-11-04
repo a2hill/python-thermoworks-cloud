@@ -2,6 +2,10 @@
 
 from copy import deepcopy
 import json
+from typing import Optional
+
+from thermoworks_cloud.models import FanState
+from thermoworks_cloud.models.device import DevicesResponse
 
 # API key sent to the ThermoWorks API, which is not the Firebase `API_KEY`
 TEST_THERMOWORKS_API_KEY = "twk_test_key_id_test_secret"
@@ -104,18 +108,128 @@ GET_DEVICES_API_NULLS_RESPONSE = json.loads(
 }"""
 )
 
-# Hand-built from the captured response above, for a device reporting through a gateway with a
-# connected fan. Neither has been captured, so the values are invented and the fan's field names
-# come from the mapping in ha-thermoworks-cloud pull request 47.
-GET_DEVICES_API_WITH_GATEWAY_AND_FAN_RESPONSE = deepcopy(GET_DEVICES_API_RESPONSE)
-GET_DEVICES_API_WITH_GATEWAY_AND_FAN_RESPONSE["devices"][0].update({
-    "gatewaySignal": -55,
-    "fan": {
-        "connected": True,
+# Representative device responses informed by rparenton's captures in issue #46:
+# https://github.com/a2hill/ha-thermoworks-cloud/issues/46#issuecomment-6633438207
+# Keep one gateway and one meat probe independently, not the contributor's account layout.
+# Only fields needed for these mapping contracts are retained; identifiers are placeholders.
+
+GET_DEVICES_API_RFX_GATEWAY_RESPONSE = json.loads(
+    """
+{
+  "generatedAt": "2026-11-04T14:12:14.228Z",
+  "devices": [
+    {
+      "id": "test-rfx-gateway-id",
+      "serial": "test-rfx-gateway-serial",
+      "model": "rfx gateway",
+      "displayUnits": "F",
+      "type": "rfx",
+      "fan": {
+        "connected": true,
         "channel": "1",
-        "setTemp": 150,
-        "state": 1,
-    },
-})
+        "setTemp": 275,
+        "state": 1
+      },
+      "wifiSignal": -37,
+      "gatewaySignal": null,
+      "channels": [
+        {
+          "id": "1",
+          "number": 1,
+          "type": "Pro-Series",
+          "value": 70.1999969482422,
+          "units": "F"
+        }
+      ]
+    }
+  ]
+}"""
+)
+
+GET_DEVICES_API_RFX_MEAT_RESPONSE = json.loads(
+    """
+{
+  "generatedAt": "2026-11-04T14:12:14.228Z",
+  "devices": [
+    {
+      "id": "test-rfx-meat-1-id",
+      "serial": "test-rfx-meat-1-serial",
+      "model": "rfx meat",
+      "type": "rfx",
+      "wifiSignal": null,
+      "gatewaySignal": -66,
+      "fan": null,
+      "channels": [
+        {
+          "id": "0",
+          "number": 0,
+          "type": "computed",
+          "value": 69.7000045776367,
+          "units": "F",
+          "lastTelemetrySaved": "2026-11-04T14:10:55.122Z"
+        },
+        {
+          "id": "1",
+          "number": 1,
+          "type": "rfx meat sensor",
+          "value": 69.9000015258789,
+          "units": "F",
+          "lastTelemetrySaved": "2026-11-04T14:10:55.122Z"
+        },
+        {
+          "id": "2",
+          "number": 2,
+          "type": "rfx meat sensor",
+          "value": 69.9000015258789,
+          "units": "F",
+          "lastTelemetrySaved": "2026-11-04T14:10:55.122Z"
+        },
+        {
+          "id": "3",
+          "number": 3,
+          "type": "rfx meat sensor",
+          "value": 69.8000030517578,
+          "units": "F",
+          "lastTelemetrySaved": "2026-11-04T14:10:55.122Z"
+        },
+        {
+          "id": "4",
+          "number": 4,
+          "type": "rfx meat sensor",
+          "value": 69.7000045776367,
+          "units": "F",
+          "lastTelemetrySaved": "2026-11-04T14:10:55.122Z"
+        }
+      ]
+    }
+  ]
+}"""
+)
+
+
+def _response_with_fan_state(state: Optional[int], connected: bool = True) -> DevicesResponse:
+    """Vary fan state independently of probe count, channel values and other account details."""
+    response = deepcopy(GET_DEVICES_API_RFX_GATEWAY_RESPONSE)
+    fan = response["devices"][0]["fan"]
+    fan["state"] = state
+    fan["connected"] = connected
+    return response
+
+
+GET_DEVICES_API_BILLOWS_PAUSED_RESPONSE = _response_with_fan_state(FanState.PAUSED)
+GET_DEVICES_API_BILLOWS_PULSING_RESPONSE = _response_with_fan_state(FanState.PULSING)
+GET_DEVICES_API_BILLOWS_DISCONNECTED_RESPONSE = _response_with_fan_state(
+    FanState.PAUSED, connected=False
+)
+# Synthetic combinations: connection and the last reported operating state are independent.
+GET_DEVICES_API_BILLOWS_DISCONNECTED_BLOWING_RESPONSE = _response_with_fan_state(
+    FanState.BLOWING, connected=False
+)
+GET_DEVICES_API_BILLOWS_DISCONNECTED_PULSING_RESPONSE = _response_with_fan_state(
+    FanState.PULSING, connected=False
+)
+# Synthetic boundary cases: not observed states in the contributed captures.
+GET_DEVICES_API_BILLOWS_UNKNOWN_RESPONSE = _response_with_fan_state(99)
+GET_DEVICES_API_BILLOWS_NULL_STATE_RESPONSE = _response_with_fan_state(None)
 
 ERROR_RESPONSE = {"error": {"code": "invalid_api_key", "message": "Invalid API key"}}
