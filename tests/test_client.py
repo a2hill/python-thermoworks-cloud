@@ -14,13 +14,17 @@ from tests.client_test_data import (
     ERROR_RESPONSE,
     GET_DEVICES_API_NULLS_RESPONSE,
     GET_DEVICES_API_RESPONSE,
-    GET_DEVICES_API_WITH_GATEWAY_AND_FAN_RESPONSE,
+    GET_DEVICES_API_RFX_BILLOWS_DISCONNECTED_RESPONSE,
+    GET_DEVICES_API_RFX_BILLOWS_BLOWING_RESPONSE,
+    GET_DEVICES_API_RFX_BILLOWS_PAUSED_RESPONSE,
+    GET_DEVICES_API_RFX_BILLOWS_PULSING_RESPONSE,
     GET_ME_RESPONSE,
     TEST_ETAG,
     TEST_REFRESHED_ETAG,
     TEST_THERMOWORKS_API_KEY,
 )
 from thermoworks_cloud import ApiAuthenticationError, RateLimitError, ThermoworksClient
+from thermoworks_cloud.models.device import DevicesResponse
 
 
 def iso_instant(datetime_input: datetime) -> str:
@@ -231,32 +235,122 @@ class TestClient:
         assert channel.maximum.reading.units == expected["units"]
         assert channel.maximum.date_reading is None
 
-    async def test_get_devices_with_gateway_and_fan(
-        self, client_session: ClientSession, client_test_object: ClientTestObject
+    @pytest.mark.parametrize(
+        ("response", "state_name"),
+        [
+            pytest.param(
+                GET_DEVICES_API_RFX_BILLOWS_DISCONNECTED_RESPONSE, "Paused", id="disconnected"
+            ),
+            pytest.param(GET_DEVICES_API_RFX_BILLOWS_BLOWING_RESPONSE, "Blowing", id="blowing"),
+            pytest.param(GET_DEVICES_API_RFX_BILLOWS_PAUSED_RESPONSE, "Paused", id="paused"),
+            pytest.param(GET_DEVICES_API_RFX_BILLOWS_PULSING_RESPONSE, "Pulsing", id="pulsing"),
+        ],
+    )
+    async def test_get_devices_with_billows(
+        self,
+        client_session: ClientSession,
+        client_test_object: ClientTestObject,
+        response: DevicesResponse,
+        state_name: str,
     ) -> None:
-        """Test that gateway signal and fan accessories map onto the existing Device model."""
+        """Preserve the gateway and fan fields in each contributed Billows capture."""
 
         # Setup
-        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(
-            GET_DEVICES_API_WITH_GATEWAY_AND_FAN_RESPONSE
-        )
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(response)
         client = ThermoworksClient(
             client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
         )
-        expected = GET_DEVICES_API_WITH_GATEWAY_AND_FAN_RESPONSE["devices"][0]
+        expected = response["devices"][0]
+        expected_fan = expected["fan"]
+        assert expected_fan is not None
 
         # Act
-        device = (await client.get_devices())[0]
+        devices = await client.get_devices()
 
         # Assert
+        assert len(devices) == 5
+        assert [device.device_id for device in devices] == [
+            device["id"] for device in response["devices"]
+        ]
+        assert len({device.device_id for device in devices}) == 5
+        device = devices[0]
+        assert device.serial == expected["serial"]
+        assert device.device_name == "rfx gateway"
+        assert device.device_display_units == expected["displayUnits"]
+        assert device.wifi_strength == expected["wifiSignal"]
+        assert device.gateway_rssi is None
+        assert device.signal_strength == expected["wifiSignal"]
+        assert device.fan is not None
+        assert device.fan.connected == expected_fan["connected"]
+        assert device.fan.connection == expected_fan["connected"]
+        assert device.fan.fan_channel == expected_fan["channel"]
+        # Disconnection does not clear the setpoint or state in the API response.
+        assert device.fan.set_temp == expected_fan["setTemp"]
+        assert device.fan.state == expected_fan["state"]
+        assert device.fan.state_name == state_name
+
+    @pytest.mark.parametrize(
+        "response",
+        [
+            pytest.param(GET_DEVICES_API_RFX_BILLOWS_DISCONNECTED_RESPONSE, id="disconnected"),
+            pytest.param(GET_DEVICES_API_RFX_BILLOWS_BLOWING_RESPONSE, id="blowing"),
+            pytest.param(GET_DEVICES_API_RFX_BILLOWS_PAUSED_RESPONSE, id="paused"),
+            pytest.param(GET_DEVICES_API_RFX_BILLOWS_PULSING_RESPONSE, id="pulsing"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "device_index", [1, 2, 3, 4], ids=["meat-1", "meat-2", "meat-3", "meat-4"]
+    )
+    async def test_get_devices_rfx_meat_channels(
+        self,
+        client_session: ClientSession,
+        client_test_object: ClientTestObject,
+        response: DevicesResponse,
+        device_index: int,
+    ) -> None:
+        """Retain each meat probe's computed channel zero and all four physical channels."""
+
+        # Setup
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(response)
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
+        expected = response["devices"][device_index]
+        expected_channels = expected["channels"]
+
+        # Act
+        devices = await client.get_devices()
+
+        # Assert
+        assert len(devices) == 5
+        device = devices[device_index]
+        assert device.device_id == expected["id"]
+        assert device.serial == expected["serial"]
+        assert device.device_name == "rfx meat"
+        assert device.fan is None
+        assert device.wifi_strength is None
         assert device.gateway_rssi == expected["gatewaySignal"]
         assert device.signal_strength == expected["gatewaySignal"]
-        assert device.fan is not None
-        assert device.fan.connected == expected["fan"]["connected"]
-        assert device.fan.connection == expected["fan"]["connected"]
-        assert device.fan.fan_channel == expected["fan"]["channel"]
-        assert device.fan.set_temp == expected["fan"]["setTemp"]
-        assert device.fan.state == expected["fan"]["state"]
+        assert device.channels is not None
+        assert len(device.channels) == 5
+        assert [channel.number for channel in device.channels] == ["0", "1", "2", "3", "4"]
+        assert [channel.type for channel in device.channels] == [
+            "computed",
+            "rfx meat sensor",
+            "rfx meat sensor",
+            "rfx meat sensor",
+            "rfx meat sensor",
+        ]
+        assert [channel.value for channel in device.channels] == [
+            channel["value"] for channel in expected_channels
+        ]
+        assert [channel.units for channel in device.channels] == [
+            channel["units"] for channel in expected_channels
+        ]
+        assert [
+            iso_instant(channel.last_telemetry_saved) if channel.last_telemetry_saved else None
+            for channel in device.channels
+        ] == [channel["lastTelemetrySaved"] for channel in expected_channels]
 
     async def test_get_devices_null_fields(
         self, client_session: ClientSession, client_test_object: ClientTestObject
@@ -321,7 +415,7 @@ class TestClient:
         client_test_object.expect_get_devices(
             TEST_THERMOWORKS_API_KEY, etag=TEST_ETAG
         ).respond_with_json(
-            GET_DEVICES_API_WITH_GATEWAY_AND_FAN_RESPONSE, headers={"ETag": TEST_REFRESHED_ETAG}
+            GET_DEVICES_API_RFX_BILLOWS_BLOWING_RESPONSE, headers={"ETag": TEST_REFRESHED_ETAG}
         )
         client_test_object.expect_get_devices(
             TEST_THERMOWORKS_API_KEY, etag=TEST_REFRESHED_ETAG
@@ -337,9 +431,9 @@ class TestClient:
 
         # Assert
         assert devices == refreshed_devices
-        assert devices[0].gateway_rssi == (
-            GET_DEVICES_API_WITH_GATEWAY_AND_FAN_RESPONSE["devices"][0]["gatewaySignal"]
-        )
+        assert [device.device_id for device in devices] == [
+            device["id"] for device in GET_DEVICES_API_RFX_BILLOWS_BLOWING_RESPONSE["devices"]
+        ]
 
     @pytest.mark.parametrize("status", [401, 403])
     async def test_get_me_rejected_key_throws(
