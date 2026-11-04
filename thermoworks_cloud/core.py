@@ -1,7 +1,13 @@
-"""Accessor for the Thermoworks Cloud API."""
+"""Accessor for the Thermoworks Cloud API through Firebase.
+
+Deprecated: use `thermoworks_cloud.client.ThermoworksClient`. Delete this module, along with
+`auth.py` and the Firebase parts of the models, once the EU API is live. This deprecation is the
+notice to users, so no further deprecation period or compatibility shim is needed.
+"""
 
 import logging
 import urllib.parse
+import warnings
 from typing import List, Literal, Optional
 
 from thermoworks_cloud.utils import format_client_response
@@ -34,7 +40,10 @@ class ResourceNotFoundError(Exception):
 
 
 class ThermoworksCloud:
-    """Client for the Thermoworks Cloud service."""
+    """Client for the Thermoworks Cloud service.
+
+    Deprecated: use `thermoworks_cloud.client.ThermoworksClient`. See the module documentation.
+    """
 
     def __init__(self, auth: Auth) -> None:
         """Create a new client. `thermoworks_cloud.Auth` objects are created using a
@@ -43,6 +52,12 @@ class ThermoworksCloud:
         Args:
             auth (Auth): Authorization object used to make authorized requests to the service.
         """
+        warnings.warn(
+            "ThermoworksCloud is deprecated and will be removed once the EU API is live. "
+            "Use ThermoworksClient instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self._auth = auth
 
     async def get_user(self) -> User:

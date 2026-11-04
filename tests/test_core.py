@@ -979,3 +979,11 @@ class TestCore:  # pylint: disable=too-many-public-methods
 
         with pytest.raises(ResourceNotFoundError):
             await thermoworks_cloud.get_archive(TEST_ARCHIVE_FILENAME)
+
+
+async def test_client_is_deprecated(auth: Auth) -> None:
+    """Test that creating a ThermoworksCloud warns that it will be removed."""
+
+    # Act
+    with pytest.warns(DeprecationWarning, match="ThermoworksClient"):
+        ThermoworksCloud(auth)

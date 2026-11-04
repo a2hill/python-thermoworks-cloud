@@ -11,6 +11,7 @@ import logging
 from . import models
 from .auth import Auth, AuthenticationError, AuthenticationErrorReason, AuthFactory
 from .core import ThermoworksCloud, ResourceNotFoundError
+from .client import ApiAuthenticationError, RateLimitError, ThermoworksClient
 
 # The publicly accessible classes for this module
 __all__ = [
@@ -20,6 +21,9 @@ __all__ = [
     "AuthenticationError",
     "AuthenticationErrorReason",
     "ResourceNotFoundError",
+    "ThermoworksClient",
+    "ApiAuthenticationError",
+    "RateLimitError",
     "models",
 ]
 

@@ -12,6 +12,11 @@ def parse_datetime(value: str) -> datetime:
     return datetime.fromisoformat(value)
 
 
+def parse_optional_datetime(value: Optional[str]) -> Optional[datetime]:
+    """Convert a timestamp string from the API, which may be null, to a datetime object."""
+    return parse_datetime(value) if value else None
+
+
 def unwrap_firestore_value(value_dict):  # pylint: disable=too-many-return-statements
     """Recursively unwrap a Firestore value dictionary into Python values.
 

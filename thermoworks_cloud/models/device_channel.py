@@ -2,9 +2,43 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, Dict
+from typing import Optional, Dict, TypedDict
 
-from thermoworks_cloud.utils import parse_datetime, map_firestore_fields, parse_nested_object
+from thermoworks_cloud.utils import (
+    parse_datetime,
+    parse_optional_datetime,
+    map_firestore_fields,
+    parse_nested_object,
+)
+
+
+class _AlarmResponse(TypedDict, total=False):
+    """An alarm in a response from the ThermoWorks API."""
+
+    enabled: bool
+    value: Optional[float]
+    alarming: bool
+
+
+class DeviceChannelResponse(TypedDict, total=False):
+    """A channel in a response from the ThermoWorks API."""
+
+    id: str
+    number: Optional[int]
+    label: Optional[str]
+    type: Optional[str]
+    enabled: bool
+    value: Optional[float]
+    units: Optional[str]
+    status: Optional[str]
+    probeFailed: bool
+    alarming: bool
+    alarmHigh: Optional[_AlarmResponse]
+    alarmLow: Optional[_AlarmResponse]
+    minimum: Optional[float]
+    maximum: Optional[float]
+    lastTelemetrySaved: Optional[str]
+    lastSeen: Optional[str]
 
 
 @dataclass
@@ -26,8 +60,8 @@ class Alarm:
         default=None, metadata={"firestore_type": "booleanValue"})
     alarming: Optional[bool] = field(
         default=None, metadata={"firestore_type": "booleanValue"})
-    value: Optional[int] = field(default=None, metadata={
-                                 "firestore_type": "integerValue", "converter": int})
+    value: Optional[float] = field(default=None, metadata={
+                                   "firestore_type": "integerValue", "converter": int})
     """"The units as a string like "F", "C", or "H" (for humidity)"""
     units: Optional[str] = field(default=None, metadata={
                                  "firestore_type": "stringValue"})
@@ -52,6 +86,10 @@ class DeviceChannel:  # pylint: disable=too-many-instance-attributes
     """A device channel on a device.
 
     All fields are optional as different device types may have different properties.
+
+    Deprecated: `show_avg_temp` and `MinMaxReading.date_reading` only exist in Firebase and
+    `ThermoworksClient` leaves them unset. Delete them along with `core.py` once the EU API is
+    live, see the documentation there.
     """
 
     last_telemetry_saved: Optional[datetime] = field(
@@ -153,3 +191,76 @@ def _document_to_device_channel(document: dict) -> DeviceChannel:
         pass
 
     return device_channel
+
+
+def _json_to_alarm(data: Optional[_AlarmResponse], units: Optional[str]) -> Optional[Alarm]:
+    """Convert an alarm from the ThermoWorks API into an Alarm object.
+
+    Unlike Firebase, API alarms have no units of their own. They use the units of their channel.
+    """
+    if not data:
+        return None
+
+    return Alarm(
+        enabled=data.get("enabled"),
+        alarming=data.get("alarming"),
+        value=data.get("value"),
+        units=units,
+    )
+
+
+def _json_to_min_max_reading(
+    value: Optional[float], units: Optional[str]
+) -> Optional[MinMaxReading]:
+    """Convert a minimum or maximum from the ThermoWorks API into a MinMaxReading object.
+
+    Unlike Firebase, the API only provides the value, so `date_reading` is left unset.
+    """
+    if value is None:
+        return None
+
+    return MinMaxReading(reading=Reading(value=value, units=units))
+
+
+def _json_to_device_channel(data: DeviceChannelResponse) -> DeviceChannel:
+    """Convert a channel from the ThermoWorks API into a DeviceChannel object.
+
+    Firebase only has `number`. `id` has been observed to be the same number as a string, but it
+    is kept in `additional_properties` along with the other API fields that have no Firebase
+    equivalent: `enabled`, `alarming` and `probeFailed`.
+    """
+    known_fields = {
+        "number",
+        "label",
+        "type",
+        "value",
+        "units",
+        "status",
+        "alarmHigh",
+        "alarmLow",
+        "minimum",
+        "maximum",
+        "lastTelemetrySaved",
+        "lastSeen",
+    }
+    additional_properties = {
+        key: value for key, value in data.items() if key not in known_fields
+    }
+    number = data.get("number")
+    units = data.get("units")
+
+    return DeviceChannel(
+        number=str(number) if number is not None else None,
+        label=data.get("label"),
+        type=data.get("type"),
+        value=data.get("value"),
+        units=units,
+        status=data.get("status"),
+        alarm_high=_json_to_alarm(data.get("alarmHigh"), units),
+        alarm_low=_json_to_alarm(data.get("alarmLow"), units),
+        minimum=_json_to_min_max_reading(data.get("minimum"), units),
+        maximum=_json_to_min_max_reading(data.get("maximum"), units),
+        last_telemetry_saved=parse_optional_datetime(data.get("lastTelemetrySaved")),
+        last_seen=parse_optional_datetime(data.get("lastSeen")),
+        additional_properties=additional_properties or None,
+    )

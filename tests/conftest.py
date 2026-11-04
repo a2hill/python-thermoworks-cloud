@@ -5,6 +5,7 @@ from aiohttp import ClientSession
 import pytest
 from pytest_httpserver import HTTPServer
 
+from tests.client_test_object import ClientTestObject
 from tests.core_test_object import CoreTestObject
 from tests.test_data import CONFIG_RETURN_VALUE
 from tests.test_data import LOGIN_RETURN_VALUE, TEST_EMAIL_ADDRESS, TEST_PASSWORD
@@ -73,3 +74,9 @@ async def fixture_auth(
 def core_test_object(httpserver: HTTPServer, auth: Auth) -> CoreTestObject:
     """Provide a CoreTestObject for use in component tests."""
     return CoreTestObject(httpserver, auth)
+
+
+@pytest.fixture()
+def client_test_object(httpserver: HTTPServer) -> ClientTestObject:
+    """Provide a ClientTestObject for use in component tests."""
+    return ClientTestObject(httpserver)
