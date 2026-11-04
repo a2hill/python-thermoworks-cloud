@@ -337,6 +337,9 @@ def _json_to_device(data: DeviceResponse) -> Device:
         gateway_rssi=data.get("gatewaySignal"),
         last_seen=parse_optional_datetime(data.get("lastSeen")),
         transmit_interval_in_seconds=data.get("transmitIntervalSeconds"),
-        channels=[_json_to_device_channel(channel) for channel in data.get("channels", [])],
+        channels=[
+            _json_to_device_channel(channel, data.get("displayUnits"))
+            for channel in data.get("channels", [])
+        ],
         additional_properties=additional_properties or None,
     )

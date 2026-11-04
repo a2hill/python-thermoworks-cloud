@@ -5,6 +5,7 @@ models they return, so these tests can stay when the Firebase implementation is 
 """
 
 from datetime import datetime
+from typing import Optional
 
 from aiohttp import ClientSession
 import pytest
@@ -14,6 +15,11 @@ from tests.client_test_data import (
     ERROR_RESPONSE,
     GET_DEVICES_API_NULLS_RESPONSE,
     GET_DEVICES_API_RESPONSE,
+    GET_DEVICES_API_CELSIUS_DISPLAY_RESPONSE,
+    GET_DEVICES_API_CELSIUS_CHANNEL_RESPONSE,
+    GET_DEVICES_API_NULL_DISPLAY_UNITS_RESPONSE,
+    GET_DEVICES_API_MISSING_DISPLAY_UNITS_RESPONSE,
+    GET_DEVICES_API_HUMIDITY_RESPONSE,
     GET_DEVICES_API_RFX_GATEWAY_RESPONSE,
     GET_DEVICES_API_RFX_MEAT_RESPONSE,
     GET_DEVICES_API_BILLOWS_PAUSED_RESPONSE,
@@ -179,19 +185,61 @@ class TestClient:
             "probeFailed": expected["probeFailed"],
         }
 
-    async def test_get_devices_channel_alarms_use_channel_units(
-        self, client_session: ClientSession, client_test_object: ClientTestObject
+    @pytest.mark.parametrize(
+        ("response", "expected_alarm_units"),
+        [
+            pytest.param(
+                GET_DEVICES_API_HUMIDITY_RESPONSE,
+                GET_DEVICES_API_HUMIDITY_RESPONSE["devices"][0]["channels"][0]["units"],
+                id="humidity",
+            ),
+            pytest.param(
+                GET_DEVICES_API_RESPONSE,
+                GET_DEVICES_API_RESPONSE["devices"][0].get("displayUnits"),
+                id="same-temperature-units",
+            ),
+            pytest.param(
+                GET_DEVICES_API_CELSIUS_DISPLAY_RESPONSE,
+                GET_DEVICES_API_CELSIUS_DISPLAY_RESPONSE["devices"][0].get("displayUnits"),
+                id="celsius-display-fahrenheit-channel",
+            ),
+            pytest.param(
+                GET_DEVICES_API_CELSIUS_CHANNEL_RESPONSE,
+                GET_DEVICES_API_CELSIUS_CHANNEL_RESPONSE["devices"][0].get("displayUnits"),
+                id="fahrenheit-display-celsius-channel",
+            ),
+            pytest.param(
+                GET_DEVICES_API_NULL_DISPLAY_UNITS_RESPONSE,
+                GET_DEVICES_API_NULL_DISPLAY_UNITS_RESPONSE["devices"][0].get("displayUnits"),
+                id="null-display-units",
+            ),
+            pytest.param(
+                GET_DEVICES_API_MISSING_DISPLAY_UNITS_RESPONSE,
+                GET_DEVICES_API_MISSING_DISPLAY_UNITS_RESPONSE["devices"][0].get("displayUnits"),
+                id="missing-display-units",
+            ),
+        ],
+    )
+    async def test_get_devices_channel_alarm_units(
+        self,
+        client_session: ClientSession,
+        client_test_object: ClientTestObject,
+        response: DevicesResponse,
+        expected_alarm_units: Optional[str],
     ) -> None:
-        """Test that alarms, which have no units in the API, get the units of their channel."""
+        """Temperature alarms use display units; other alarms keep their channel units."""
 
         # Setup
-        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(
-            GET_DEVICES_API_RESPONSE
-        )
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(response)
         client = ThermoworksClient(
             client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
         )
-        expected = GET_DEVICES_API_RESPONSE["devices"][0]["channels"][0]
+        expected_device = response["devices"][0]
+        expected = expected_device["channels"][0]
+        expected_high = expected["alarmHigh"]
+        expected_low = expected["alarmLow"]
+        assert expected_high is not None
+        assert expected_low is not None
 
         # Act
         device = (await client.get_devices())[0]
@@ -199,30 +247,50 @@ class TestClient:
         # Assert
         assert device.channels is not None
         channel = device.channels[0]
+        assert channel.value == expected["value"]
+        assert channel.units == expected["units"]
         assert channel.alarm_high is not None
-        assert channel.alarm_high.enabled == expected["alarmHigh"]["enabled"]
-        assert channel.alarm_high.alarming == expected["alarmHigh"]["alarming"]
-        assert channel.alarm_high.value == expected["alarmHigh"]["value"]
-        assert channel.alarm_high.units == expected["units"]
+        assert channel.alarm_high.enabled == expected_high["enabled"]
+        assert channel.alarm_high.alarming == expected_high["alarming"]
+        assert channel.alarm_high.value == expected_high["value"]
+        assert channel.alarm_high.units == expected_alarm_units
         assert channel.alarm_low is not None
-        assert channel.alarm_low.enabled == expected["alarmLow"]["enabled"]
-        assert channel.alarm_low.alarming == expected["alarmLow"]["alarming"]
-        assert channel.alarm_low.value == expected["alarmLow"]["value"]
-        assert channel.alarm_low.units == expected["units"]
+        assert channel.alarm_low.enabled == expected_low["enabled"]
+        assert channel.alarm_low.alarming == expected_low["alarming"]
+        assert channel.alarm_low.value == expected_low["value"]
+        assert channel.alarm_low.units == expected_alarm_units
 
+    @pytest.mark.parametrize(
+        "response",
+        [
+            pytest.param(GET_DEVICES_API_RESPONSE, id="same-temperature-units"),
+            pytest.param(GET_DEVICES_API_HUMIDITY_RESPONSE, id="humidity"),
+            pytest.param(
+                GET_DEVICES_API_CELSIUS_DISPLAY_RESPONSE, id="celsius-display-fahrenheit-channel"
+            ),
+            pytest.param(
+                GET_DEVICES_API_CELSIUS_CHANNEL_RESPONSE, id="fahrenheit-display-celsius-channel"
+            ),
+            pytest.param(GET_DEVICES_API_NULL_DISPLAY_UNITS_RESPONSE, id="null-display-units"),
+            pytest.param(
+                GET_DEVICES_API_MISSING_DISPLAY_UNITS_RESPONSE, id="missing-display-units"
+            ),
+        ],
+    )
     async def test_get_devices_channel_min_max_use_channel_units(
-        self, client_session: ClientSession, client_test_object: ClientTestObject
+        self,
+        client_session: ClientSession,
+        client_test_object: ClientTestObject,
+        response: DevicesResponse,
     ) -> None:
         """Test that extremes, which are bare numbers in the API, map to MinMaxReading."""
 
         # Setup
-        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(
-            GET_DEVICES_API_RESPONSE
-        )
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(response)
         client = ThermoworksClient(
             client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
         )
-        expected = GET_DEVICES_API_RESPONSE["devices"][0]["channels"][0]
+        expected = response["devices"][0]["channels"][0]
 
         # Act
         device = (await client.get_devices())[0]
