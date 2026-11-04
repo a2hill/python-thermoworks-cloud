@@ -5,6 +5,10 @@ This example shows how to:
 2. Pass each page token to retrieve the next page
 3. Retrieve the most recent archive using its filename
 4. Iterate over the archived readings
+
+Archives are only available through the deprecated Firebase implementation, which ThermoWorks
+accounts can no longer sign in to because Firebase App Check is enforced. This example is not run
+by the package workflow for that reason.
 """
 
 import asyncio

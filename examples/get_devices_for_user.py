@@ -1,10 +1,9 @@
-"""Demonstrates how to use this library to get the devices for the logged in user.
+"""Demonstrates how to use this library to get the devices visible to an API key.
 
 This example shows how to:
-1. Get all devices for a user
-2. Get all channels for each device
-3. Print detailed information about devices and their properties
-4. Identify device-specific properties that may not be present in all device types
+1. Get all devices and their channels in a single request
+2. Print detailed information about devices and their properties
+3. Identify device-specific properties that may not be present in all device types
 """
 import asyncio
 import json
@@ -15,18 +14,20 @@ from typing import Dict
 
 from aiohttp import ClientSession
 
-from thermoworks_cloud import AuthFactory, ThermoworksCloud, ResourceNotFoundError
+from thermoworks_cloud import ThermoworksClient
 from thermoworks_cloud.models.device import Device
-from thermoworks_cloud.models.device_channel import DeviceChannel
 
-# Make sure these are defined
-email = os.environ["THERMOWORKS_EMAIL"]
-password = os.environ["THERMOWORKS_PASSWORD"]
+# Make sure this is defined
+api_key = os.environ["THERMOWORKS_KEY"]
+
+# This differs between cloud providers
+BASE_URL = "https://cloud.thermoworks.com/api"
 
 
-def print_device_info(device: Device, device_channels: list[DeviceChannel]):
+def print_device_info(device: Device):
     """Print detailed information about a device and its channels."""
     device_dict = asdict(device)
+    device_channels = device.channels or []
 
     print(f"\n{'=' * 50}")
     print(f"DEVICE TYPE: {device.type or 'Unknown'}")
@@ -50,48 +51,10 @@ def print_device_info(device: Device, device_channels: list[DeviceChannel]):
 
 
 async def __main__():
-    # Use a context manager when providing the session to the auth factory
+    # Use a context manager when providing the session to the client
     async with ClientSession() as session:
-        auth = await AuthFactory(session).build_auth(email, password)
-        thermoworks = ThermoworksCloud(auth)
-        user = await thermoworks.get_user()
-        if not user.account_id:
-            raise RuntimeError("No account ID found for user")
-
-        devices = await thermoworks.get_devices(user.account_id)
-        device_channels_by_device: dict[str, list[DeviceChannel]] = {}
-
-        # Iterate over the device serials and fetch the device document for each
-        for device in devices:
-            if not device.serial:
-                print(
-                    f"Cannot get channels for device {device.device_id}, device has no serial")
-                continue
-
-            try:
-                device_channels = []
-
-                # According to reverse engineering, channels seem to be 1 indexed
-                for channel in range(1, 10):
-                    try:
-                        device_channels.append(
-                            await thermoworks.get_device_channel(
-                                device_serial=device.serial, channel=str(
-                                    channel)
-                            )
-                        )
-                    except ResourceNotFoundError:
-                        # Go until there are no more
-                        break
-                    except Exception as e:
-                        print(
-                            f"Error getting channel {channel} for device {device.serial}: {e}")
-                        continue
-
-                device_channels_by_device[device.serial] = device_channels
-            except Exception as e:
-                print(f"Error getting device {device.serial}: {e}")
-                continue
+        thermoworks = ThermoworksClient(session, api_key, BASE_URL)
+        devices = await thermoworks.get_devices()
 
         # Print information about each device
         print(f"\nFound {len(devices)} devices")
@@ -111,18 +74,10 @@ async def __main__():
 
         # Print detailed information for each device
         for device in devices:
-            assert device.serial is not None
-            device_channels = device_channels_by_device.get(device.serial, [])
-            print_device_info(device, device_channels)
+            print_device_info(device)
 
         # Save the data to a JSON file for further analysis
-        output_data = {
-            "devices": [asdict(device) for device in devices],
-            "device_channels": {
-                serial: [asdict(channel) for channel in channels]
-                for serial, channels in device_channels_by_device.items()
-            }
-        }
+        output_data = {"devices": [asdict(device) for device in devices]}
 
         with open("thermoworks_devices_data.json", "w", encoding="utf-8") as f:
             json.dump(output_data, f, indent=2, default=str)

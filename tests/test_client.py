@@ -412,3 +412,39 @@ class TestClient:
         # Act
         with pytest.raises(RuntimeError):
             await client.get_devices()
+
+    async def test_get_devices_raw(
+        self, client_session: ClientSession, client_test_object: ClientTestObject
+    ):
+        """Test that get_devices_raw returns the response without parsing it."""
+
+        # Setup
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(
+            GET_DEVICES_API_RESPONSE
+        )
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
+
+        # Act
+        response = await client.get_devices_raw()
+
+        # Assert
+        assert response == GET_DEVICES_API_RESPONSE
+
+    async def test_get_devices_raw_error_throws(
+        self, client_session: ClientSession, client_test_object: ClientTestObject
+    ):
+        """Test that get_devices_raw raises a RuntimeError for a failed response."""
+
+        # Setup
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_data(
+            status=500, response_data=b"Error"
+        )
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
+
+        # Act
+        with pytest.raises(RuntimeError):
+            await client.get_devices_raw()

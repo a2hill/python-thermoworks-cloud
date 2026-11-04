@@ -37,10 +37,13 @@ jobs:
 
     - name: Validate examples
       env:
-        THERMOWORKS_EMAIL: ${{ secrets.THERMOWORKS_EMAIL }}
-        THERMOWORKS_PASSWORD: ${{ secrets.THERMOWORKS_PASSWORD }}
+        THERMOWORKS_KEY: ${{ secrets.THERMOWORKS_KEY }}
       run: |
         for example in examples/*.py; do
+          # Archives require Firebase, which ThermoWorks accounts can no longer sign in to
+          if [ "$example" = "examples/get_device_archives.py" ]; then
+            continue
+          fi
           echo "Running $example"
           python "$example"
         done

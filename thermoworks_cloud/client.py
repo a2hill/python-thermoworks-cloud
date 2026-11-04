@@ -1,7 +1,7 @@
 """Accessor for the ThermoWorks Cloud API."""
 
 from http import HTTPStatus
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from aiohttp import ClientResponse, ClientSession
 
@@ -40,8 +40,8 @@ class RateLimitError(RuntimeError):
 class ThermoworksClient:
     """Client for the ThermoWorks Cloud API.
 
-    Requests count against a per-key rate limit, so `get_devices` is the only device read:
-    it returns every device with its channels in a single request.
+    Requests count against a per-key rate limit, so `get_devices` is the only way to read
+    devices for polling: it returns every device with its channels in a single request.
     """
 
     def __init__(self, websession: ClientSession, api_key: str, base_url: str) -> None:
@@ -86,6 +86,18 @@ class ThermoworksClient:
             self._devices = [_json_to_device(device) for device in devices_json["devices"]]
             self._etag = response.headers.get("ETag")
             return self._devices
+
+        raise await self._response_error("Failed to get devices", response)
+
+    async def get_devices_raw(self) -> Dict[str, Any]:
+        """Fetch the unparsed response of the devices API, for diagnosing unsupported devices.
+
+        This always returns a full response, so it does not use or update the ETag.
+        """
+
+        response = await self._request("v1/devices")
+        if response.ok:
+            return await response.json()
 
         raise await self._response_error("Failed to get devices", response)
 
