@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Optional, Dict
 
 from thermoworks_cloud.utils import parse_datetime, map_firestore_fields, parse_nested_object
+from thermoworks_cloud.utils import _object, _field, _timestamp, _additional
 
 
 @dataclass
@@ -153,3 +154,42 @@ def _document_to_device_channel(document: dict) -> DeviceChannel:
         pass
 
     return device_channel
+
+
+def _api_to_device_channel(payload: dict) -> DeviceChannel:
+    """Map API readings without inventing channel numbers or extrema timestamps."""
+    data = _object(payload)
+    _field(data, "id", str, required=True)
+    number = _field(data, "number", int)
+    units = _field(data, "units", str)
+    channel = DeviceChannel(
+        # id identifies the API channel; only number has the legacy channel-number meaning.
+        number=str(number) if number is not None else None,
+        label=_field(data, "label", str), type=_field(data, "type", str),
+        value=_field(data, "value", (int, float)), units=units,
+        status=_field(data, "status", str),
+        last_seen=_timestamp(data, "lastSeen"),
+        last_telemetry_saved=_timestamp(data, "lastTelemetrySaved"),
+    )
+    for name, target in (("alarmHigh", "alarm_high"), ("alarmLow", "alarm_low")):
+        if data.get(name) is not None:
+            alarm = _object(data[name])
+            # The API alarm omits units; its threshold uses the parent channel units.
+            setattr(channel, target, Alarm(
+                enabled=_field(alarm, "enabled", bool),
+                alarming=_field(alarm, "alarming", bool),
+                value=_field(alarm, "value", (int, float)), units=units,
+            ))
+    for name in ("minimum", "maximum"):
+        value = _field(data, name, (int, float))
+        if value is not None:
+            # API extrema have values but no occurrence times. Keep date_reading=None.
+            setattr(channel, name, MinMaxReading(reading=Reading(value=value, units=units)))
+    channel.additional_properties = _additional(data, {
+        "number", "label", "type", "value", "units", "status", "lastSeen",
+        "lastTelemetrySaved", "alarmHigh", "alarmLow", "minimum", "maximum",
+    })
+    # These API flags have no dedicated legacy fields, but their types are documented.
+    for name in ("enabled", "alarming", "probeFailed"):
+        _field(data, name, bool, required=True)
+    return channel

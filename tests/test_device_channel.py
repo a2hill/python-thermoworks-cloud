@@ -8,16 +8,14 @@ from tests.test_data import (
 )
 import pytest
 
-from thermoworks_cloud import ThermoworksCloud, ThermoworksClient
+from thermoworks_cloud import ThermoworksCloud
 from thermoworks_cloud.auth import Auth
 
 
 async def _get_channel_from_response(
-    auth: Auth, core_test_object: CoreTestObject, response: dict, api_client=None
+    auth: Auth, core_test_object: CoreTestObject, response: dict
 ):
     """Return a parsed device channel from a mocked response."""
-    if api_client is not None:
-        return await api_client.get_device_channel("test_device_serial", "1")
     core_test_object.expect_get_device_channel(
         access_token=TEST_ID_TOKEN,
         device_serial="test_device_serial",
@@ -54,45 +52,12 @@ async def test_get_rfx_air_probe_channel_alarms(auth: Auth, core_test_object: Co
     )
 
 
-@pytest.mark.parametrize("backend", ["firebase", "api"])
-async def test_get_signals_channel(
-    auth: Auth,
-    core_test_object: CoreTestObject,
-    backend,
-    client_session,
-    httpserver,
-    httpserver_endpoint,
-):
-    """Test parsing a Signals channel with an integer channel number."""
-    api_client = None
-    if backend == "api":
-        httpserver.expect_request("/v1/devices").respond_with_json(
-            {
-                "devices": [
-                    {
-                        "id": "test_device_serial",
-                        "serial": "test_device_serial",
-                        "channels": [
-                            {
-                                "id": "1",
-                                "number": 1,
-                                "value": 69.8,
-                                "units": "F",
-                                "type": "pro series",
-                                "status": "NORMAL",
-                                "enabled": True,
-                                "alarming": False,
-                                "probeFailed": False,
-                            }
-                        ],
-                    }
-                ]
-            }
-        )
-        api_client = ThermoworksClient(client_session, "test-key", httpserver_endpoint)
-    channel = await _get_channel_from_response(
-        auth, core_test_object, GET_SIGNALS_CHANNEL_RESPONSE, api_client
-    )
+async def test_get_signals_channel(client_test_object):
+    """Test the same channel-number and reading contract with each transport."""
+    client_test_object.expect_get_device_channel(
+        access_token=TEST_ID_TOKEN, device_serial="test_device_serial", channel="1"
+    ).respond_with_json(client_test_object.signals_channel_response)
+    channel = await client_test_object.client.get_device_channel("test_device_serial", "1")
 
     assert channel.number == "1"
     assert channel.value == 69.8

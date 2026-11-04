@@ -3,6 +3,64 @@
 from copy import deepcopy
 import json
 
+API_DEVICE_RESPONSE = {
+    "generatedAt": "2026-11-03T12:00:00Z",
+    "devices": [
+        {
+            "id": "device-1",
+            "serial": "serial-1",
+            "label": "Kitchen",
+            "type": "NODE",
+            "model": "NODE",
+            "battery": 87,
+            "wifiSignal": -50,
+            "gatewaySignal": -55,
+            "lastSeen": "2026-11-03T11:59:00Z",
+            "transmitIntervalSeconds": 60,
+            "channels": [
+                {
+                    "id": "channel-1",
+                    "number": 1,
+                    "label": "Food",
+                    "type": "temperature",
+                    "enabled": True,
+                    "value": 165.5,
+                    "units": "F",
+                    "status": "NORMAL",
+                    "probeFailed": False,
+                    "alarming": False,
+                    "lastTelemetrySaved": "2026-11-03T11:58:30Z",
+                    "alarmHigh": {"enabled": True, "value": 200, "alarming": False},
+                    "alarmLow": None,
+                }
+            ],
+        }
+    ],
+}
+
+API_TEST_KEY = "twk_test"
+API_ME_RESPONSE = {
+    "accountId": "account-1",
+    "apiKey": {"id": "key-1", "name": "HA", "scopes": ["read:devices"], "deviceIds": None},
+    "plan": {"id": None, "apiTier": "free"},
+    "rateLimit": {"perMinute": 4, "perDay": 3000},
+    "recommendedPollSeconds": 60,
+}
+API_MISSING_DEVICES_RESPONSE = {"generatedAt": "2026-11-03T12:00:00Z"}
+API_INVALID_DEVICES = [
+    None, [], {"id": "a", "channels": [None]},
+    {"id": "a", "channels": [], "lastSeen": 123},
+    {"serial": "must-not-replace-id", "channels": []},
+    {"id": "", "channels": []}, {"id": 123, "channels": []},
+]
+API_INVALID_ACCOUNTS = [[], {}, {"accountId": None}]
+API_INVALID_ACCOUNTS.extend([
+    {"accountId": "account-1", "apiKey": []},
+    {"accountId": "account-1", "rateLimit": {"perDay": "not-an-integer"}},
+])
+API_INVALID_SNAPSHOT_RESPONSE = {"devices": [{"serial": "not-an-id", "channels": []}]}
+API_NON_JSON_RESPONSES = [("application/json", "not json"), ("text/html", "<html>Error</html>")]
+
 # Paths used by the AuthFactory to setup an authentication object
 LOGIN_PATH = "/v1/accounts:signInWithPassword"
 WEB_CONFIG_PATH = (
@@ -60,6 +118,36 @@ TOKEN_REFRESH_RETURN_VALUE = {
 
 TEST_DEVICE_ID_0 = "12:34:56:78:90:AB"
 TEST_DEVICE_ID_1 = "CD:EF:12:34:56:78"
+
+# Alternate wire representations of the existing public-interface scenarios.
+API_GATEWAY_RESPONSE = {"devices": [{
+    "id": TEST_DEVICE_ID_0, "serial": TEST_DEVICE_ID_0,
+    "type": "rfx", "model": "rfx meat", "gatewaySignal": -55, "channels": [],
+}]}
+API_SIGNALS_RESPONSE = {"devices": [{
+    "id": "test_device_serial", "serial": "test_device_serial", "channels": [{
+        "id": "1", "number": 1, "value": 69.8, "units": "F",
+        "type": "pro series", "status": "NORMAL", "enabled": True,
+        "alarming": False, "probeFailed": False,
+    }],
+}]}
+API_MAPPING_RESPONSE = deepcopy(API_DEVICE_RESPONSE)
+API_MAPPING_RESPONSE["devices"][0].pop("model")
+API_MAPPING_RESPONSE["devices"][0]["type"] = "rfx"
+API_MAPPING_RESPONSE["devices"][0]["fan"] = {"connected": True}
+API_MAPPING_RESPONSE["devices"][0]["channels"][0].update({
+    "id": "opaque-channel-id", "number": None, "minimum": 0, "maximum": 200,
+    "lastSeen": "2026-11-03T11:59:00Z",
+})
+API_INVALID_CHANNEL_DEVICES = []
+for _field_name, _invalid_value in (
+    ("id", None), ("number", "1"), ("enabled", None),
+    ("alarmHigh", []), ("lastSeen", 123), ("lastSeen", "2026-11-03T11:00:00"),
+):
+    _invalid_device = deepcopy(API_DEVICE_RESPONSE["devices"][0])
+    _invalid_device["channels"][0][_field_name] = _invalid_value
+    API_INVALID_CHANNEL_DEVICES.append(_invalid_device)
+API_INVALID_DEVICES.extend(API_INVALID_CHANNEL_DEVICES)
 
 # Actual response value structure
 USER_RESPONSE = json.loads(

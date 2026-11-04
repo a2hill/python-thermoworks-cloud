@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import ClassVar, Optional, Dict
 
 from thermoworks_cloud.utils import parse_datetime, map_firestore_fields, parse_nested_object
+from thermoworks_cloud.utils import _object, _field, _timestamp, _additional
 
 
 @dataclass
@@ -183,4 +184,33 @@ def _document_to_device(document: dict) -> Device:
     if "updateTime" in document:
         device.update_time = parse_datetime(document["updateTime"])
 
+    return device
+
+
+def _api_to_device(payload: dict) -> Device:
+    """Map documented API fields to the existing device abstraction.
+
+    API id is required and authoritative; a serial cannot replace it. Model
+    and type are distinct. Firebase-only properties remain unset rather than
+    being inferred, and unrecognized API fields remain in additional_properties.
+    Channels belong to the response envelope and are converted separately.
+    """
+    data = _object(payload)
+    device = Device(
+        device_id=_field(data, "id", str, required=True),
+        serial=_field(data, "serial", str),
+        label=_field(data, "label", str),
+        type=_field(data, "type", str),
+        device_name=_field(data, "model", str),
+        firmware=_field(data, "firmware", str),
+        battery=_field(data, "battery", (int, float)),
+        wifi_strength=_field(data, "wifiSignal", (int, float)),
+        gateway_rssi=_field(data, "gatewaySignal", (int, float)),
+        last_seen=_timestamp(data, "lastSeen"),
+        transmit_interval_in_seconds=_field(data, "transmitIntervalSeconds", (int, float)),
+    )
+    device.additional_properties = _additional(data, {
+        "id", "serial", "label", "type", "model", "firmware", "battery",
+        "wifiSignal", "gatewaySignal", "lastSeen", "transmitIntervalSeconds", "channels",
+    })
     return device

@@ -11,16 +11,14 @@ from tests.test_data import (
     TEST_DEVICE_ID_0,
     TEST_ID_TOKEN,
 )
-from thermoworks_cloud import ThermoworksCloud, ThermoworksClient
+from thermoworks_cloud import ThermoworksCloud
 from thermoworks_cloud.auth import Auth
 
 
 async def _get_device_from_response(
-    auth: Auth, core_test_object: CoreTestObject, response: dict, api_client=None
+    auth: Auth, core_test_object: CoreTestObject, response: dict
 ):
     """Return a parsed device from a mocked response."""
-    if api_client is not None:
-        return await api_client.get_device(TEST_DEVICE_ID_0)
     core_test_object.expect_get_device(
         access_token=TEST_ID_TOKEN, device_serial=TEST_DEVICE_ID_0
     ).respond_with_json(response)
@@ -28,36 +26,12 @@ async def _get_device_from_response(
     return await ThermoworksCloud(auth).get_device(TEST_DEVICE_ID_0)
 
 
-@pytest.mark.parametrize("backend", ["firebase", "api"])
-async def test_get_device_with_gateway_rssi(
-    auth: Auth,
-    core_test_object: CoreTestObject,
-    backend,
-    client_session,
-    httpserver,
-    httpserver_endpoint,
-):
-    """Test parsing gateway RSSI from an RFX meat probe device."""
-    api_client = None
-    if backend == "api":
-        httpserver.expect_request("/v1/devices").respond_with_json(
-            {
-                "devices": [
-                    {
-                        "id": TEST_DEVICE_ID_0,
-                        "serial": TEST_DEVICE_ID_0,
-                        "type": "rfx",
-                        "model": "rfx meat",
-                        "gatewaySignal": -55,
-                        "channels": [],
-                    }
-                ]
-            }
-        )
-        api_client = ThermoworksClient(client_session, "test-key", httpserver_endpoint)
-    device = await _get_device_from_response(
-        auth, core_test_object, GET_DEVICE_WITH_GATEWAY_RSSI_RESPONSE, api_client
-    )
+async def test_get_device_with_gateway_rssi(client_test_object):
+    """Test the same gateway RSSI contract with each transport."""
+    client_test_object.expect_get_device(
+        access_token=TEST_ID_TOKEN, device_serial=TEST_DEVICE_ID_0
+    ).respond_with_json(client_test_object.gateway_device_response)
+    device = await client_test_object.client.get_device(TEST_DEVICE_ID_0)
 
     assert device.gateway_rssi == -55
     assert device.signal_strength == -55
