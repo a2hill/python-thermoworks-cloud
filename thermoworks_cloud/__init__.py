@@ -11,11 +11,12 @@ import logging
 from . import models
 from .auth import Auth, AuthenticationError, AuthenticationErrorReason, AuthFactory
 from .core import ThermoworksCloud, ResourceNotFoundError
-from .integrations import (
-    IntegrationsApiError,
-    IntegrationsAuthenticationError,
-    IntegrationsRateLimitError,
-    ThermoworksIntegrationsClient,
+from .client import (
+    MalformedResponseError,
+    ApiError,
+    ApiAuthenticationError,
+    RateLimitError,
+    ThermoworksClient,
 )
 
 # The publicly accessible classes for this module
@@ -26,10 +27,11 @@ __all__ = [
     "AuthenticationError",
     "AuthenticationErrorReason",
     "ResourceNotFoundError",
-    "ThermoworksIntegrationsClient",
-    "IntegrationsApiError",
-    "IntegrationsAuthenticationError",
-    "IntegrationsRateLimitError",
+    "ThermoworksClient",
+    "MalformedResponseError",
+    "ApiError",
+    "ApiAuthenticationError",
+    "RateLimitError",
     "models",
 ]
 

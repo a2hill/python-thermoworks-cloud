@@ -1,15 +1,18 @@
-"""Tests for the ThermoWorks integrations API client."""
+"""Tests for the ThermoWorks Cloud API client."""
 
 import json
+from datetime import datetime, timedelta, timezone
+from email.utils import format_datetime
 
 import pytest
 
 from thermoworks_cloud import (
-    IntegrationsAuthenticationError,
-    IntegrationsRateLimitError,
-    ThermoworksIntegrationsClient,
+    ApiError,
+    MalformedResponseError,
+    ApiAuthenticationError,
+    RateLimitError,
+    ThermoworksClient,
 )
-
 
 DEVICE_RESPONSE = {
     "generatedAt": "2026-11-03T12:00:00Z",
@@ -55,7 +58,7 @@ async def test_get_me_uses_bearer_auth(client_session, httpserver):
         headers={"Authorization": "Bearer twk_test", "Accept": "application/json"},
     ).respond_with_json({"accountId": "account-1"})
 
-    client = ThermoworksIntegrationsClient(
+    client = ThermoworksClient(
         client_session, "twk_test", base_url=f"http://{httpserver.host}:{httpserver.port}"
     )
     assert await client.get_me() == {"accountId": "account-1"}
@@ -66,7 +69,7 @@ async def test_get_devices_maps_models_and_channels(client_session, httpserver):
         "/v1/devices", method="GET", headers={"Authorization": "Bearer twk_test"}
     ).respond_with_json(DEVICE_RESPONSE, headers={"ETag": '"snapshot-1"'})
 
-    client = ThermoworksIntegrationsClient(
+    client = ThermoworksClient(
         client_session, "twk_test", base_url=f"http://{httpserver.host}:{httpserver.port}"
     )
     devices = await client.get_devices()
@@ -94,7 +97,7 @@ async def test_get_devices_uses_etag_and_cached_snapshot(client_session, httpser
         headers={"If-None-Match": '"snapshot-1"'},
     ).respond_with_data(status=304)
 
-    client = ThermoworksIntegrationsClient(
+    client = ThermoworksClient(
         client_session, "twk_test", base_url=f"http://{httpserver.host}:{httpserver.port}"
     )
     first = await client.get_devices()
@@ -105,10 +108,10 @@ async def test_get_devices_uses_etag_and_cached_snapshot(client_session, httpser
 @pytest.mark.parametrize("status", [401, 403])
 async def test_auth_errors_are_typed(client_session, httpserver, status):
     httpserver.expect_request("/v1/devices").respond_with_data(status=status)
-    client = ThermoworksIntegrationsClient(
+    client = ThermoworksClient(
         client_session, "twk_test", base_url=f"http://{httpserver.host}:{httpserver.port}"
     )
-    with pytest.raises(IntegrationsAuthenticationError):
+    with pytest.raises(ApiAuthenticationError):
         await client.get_devices()
 
 
@@ -116,10 +119,10 @@ async def test_rate_limit_exposes_retry_after(client_session, httpserver):
     httpserver.expect_request("/v1/devices").respond_with_data(
         status=429, headers={"Retry-After": "12"}
     )
-    client = ThermoworksIntegrationsClient(
+    client = ThermoworksClient(
         client_session, "twk_test", base_url=f"http://{httpserver.host}:{httpserver.port}"
     )
-    with pytest.raises(IntegrationsRateLimitError) as error:
+    with pytest.raises(RateLimitError) as error:
         await client.get_devices()
     assert error.value.retry_after == 12
 
@@ -129,8 +132,81 @@ async def test_malformed_devices_response_is_rejected(client_session, httpserver
         response_data=json.dumps({"generatedAt": "2026-11-03T12:00:00Z"}),
         content_type="application/json",
     )
-    client = ThermoworksIntegrationsClient(
+    client = ThermoworksClient(
         client_session, "twk_test", base_url=f"http://{httpserver.host}:{httpserver.port}"
     )
-    with pytest.raises(Exception, match="devices array"):
+    with pytest.raises(MalformedResponseError, match="devices array"):
+        await client.get_devices()
+
+
+@pytest.mark.parametrize(
+    "device",
+    [None, [], {"id": "a", "channels": [None]}, {"id": "a", "channels": [], "lastSeen": 123}],
+)
+async def test_malformed_nested_data_is_typed(client_session, httpserver, device):
+    httpserver.expect_request("/v1/devices").respond_with_json({"devices": [device]})
+    client = ThermoworksClient(
+        client_session, "secret", f"http://{httpserver.host}:{httpserver.port}"
+    )
+    with pytest.raises(MalformedResponseError):
+        await client.get_devices()
+
+
+async def test_not_modified_without_cache_is_rejected(client_session, httpserver):
+    httpserver.expect_request("/v1/devices").respond_with_data(status=304)
+    client = ThermoworksClient(
+        client_session, "secret", f"http://{httpserver.host}:{httpserver.port}"
+    )
+    with pytest.raises(MalformedResponseError):
+        await client.get_devices()
+
+
+@pytest.mark.parametrize("status", [302, 401, 403, 429, 500])
+async def test_error_body_cannot_expose_key(client_session, httpserver, status):
+    secret = "twk_do_not_expose"
+    httpserver.expect_request("/v1/devices").respond_with_data(secret, status=status)
+    client = ThermoworksClient(
+        client_session, secret, f"http://{httpserver.host}:{httpserver.port}"
+    )
+    with pytest.raises(ApiError) as error:
+        await client.get_devices()
+    assert secret not in str(error.value)
+
+
+@pytest.mark.parametrize("payload", [[], {}, {"accountId": None}])
+async def test_invalid_account_response(client_session, httpserver, payload):
+    httpserver.expect_request("/v1/me").respond_with_json(payload)
+    client = ThermoworksClient(
+        client_session, "secret", f"http://{httpserver.host}:{httpserver.port}"
+    )
+    with pytest.raises(MalformedResponseError):
+        await client.get_me()
+
+
+async def test_rate_limit_http_date(client_session, httpserver):
+    retry_at = datetime.now(timezone.utc) + timedelta(seconds=60)
+    httpserver.expect_request("/v1/devices").respond_with_data(
+        status=429, headers={"Retry-After": format_datetime(retry_at)}
+    )
+    client = ThermoworksClient(
+        client_session, "secret", f"http://{httpserver.host}:{httpserver.port}"
+    )
+    with pytest.raises(RateLimitError) as error:
+        await client.get_devices()
+    assert 0 < error.value.retry_after <= 60
+
+
+@pytest.mark.parametrize(
+    "content_type, body",
+    [
+        ("application/json", "not json"),
+        ("text/html", "<html>Error</html>"),
+    ],
+)
+async def test_non_json_response_is_typed(client_session, httpserver, content_type, body):
+    httpserver.expect_request("/v1/devices").respond_with_data(body, content_type=content_type)
+    client = ThermoworksClient(
+        client_session, "secret", f"http://{httpserver.host}:{httpserver.port}"
+    )
+    with pytest.raises(MalformedResponseError):
         await client.get_devices()
