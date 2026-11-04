@@ -40,7 +40,7 @@ class TestClient:
 
     async def test_get_me(
         self, client_session: ClientSession, client_test_object: ClientTestObject
-    ):
+    ) -> None:
         """Test that get_me returns the account described by the response."""
 
         # Setup
@@ -68,7 +68,7 @@ class TestClient:
 
     async def test_get_me_empty_response(
         self, client_session: ClientSession, client_test_object: ClientTestObject
-    ):
+    ) -> None:
         """Test that get_me handles a response without any of the optional fields."""
 
         # Setup
@@ -88,7 +88,7 @@ class TestClient:
 
     async def test_get_devices(
         self, client_session: ClientSession, client_test_object: ClientTestObject
-    ):
+    ) -> None:
         """Test that get_devices maps the response onto the existing Device model."""
 
         # Setup
@@ -129,7 +129,7 @@ class TestClient:
 
     async def test_get_devices_channels(
         self, client_session: ClientSession, client_test_object: ClientTestObject
-    ):
+    ) -> None:
         """Test that get_devices maps nested channels onto the existing DeviceChannel model."""
 
         # Setup
@@ -164,7 +164,7 @@ class TestClient:
 
     async def test_get_devices_channel_alarms_use_channel_units(
         self, client_session: ClientSession, client_test_object: ClientTestObject
-    ):
+    ) -> None:
         """Test that alarms, which have no units in the API, get the units of their channel."""
 
         # Setup
@@ -191,7 +191,7 @@ class TestClient:
 
     async def test_get_devices_channel_min_max_use_channel_units(
         self, client_session: ClientSession, client_test_object: ClientTestObject
-    ):
+    ) -> None:
         """Test that extremes, which are bare numbers in the API, map to MinMaxReading."""
 
         # Setup
@@ -216,7 +216,7 @@ class TestClient:
 
     async def test_get_devices_with_gateway_and_fan(
         self, client_session: ClientSession, client_test_object: ClientTestObject
-    ):
+    ) -> None:
         """Test that gateway signal and fan accessories map onto the existing Device model."""
 
         # Setup
@@ -242,7 +242,7 @@ class TestClient:
 
     async def test_get_devices_null_fields(
         self, client_session: ClientSession, client_test_object: ClientTestObject
-    ):
+    ) -> None:
         """Test that null and absent fields are left unset rather than failing the request."""
 
         # Setup
@@ -269,7 +269,7 @@ class TestClient:
 
     async def test_get_devices_not_modified_returns_previous_devices(
         self, client_session: ClientSession, client_test_object: ClientTestObject
-    ):
+    ) -> None:
         """Test that a 304 response to the previous ETag returns the previous devices."""
 
         # Setup
@@ -292,7 +292,7 @@ class TestClient:
 
     async def test_get_devices_sends_latest_etag(
         self, client_session: ClientSession, client_test_object: ClientTestObject
-    ):
+    ) -> None:
         """Test that a changed response replaces the devices and the ETag sent next."""
 
         # Setup
@@ -325,7 +325,7 @@ class TestClient:
     @pytest.mark.parametrize("status", [401, 403])
     async def test_get_me_rejected_key_throws(
         self, client_session: ClientSession, client_test_object: ClientTestObject, status: int
-    ):
+    ) -> None:
         """Test that get_me raises ApiAuthenticationError when the key is rejected."""
 
         # Setup
@@ -343,7 +343,7 @@ class TestClient:
     @pytest.mark.parametrize("status", [401, 403])
     async def test_get_devices_rejected_key_throws(
         self, client_session: ClientSession, client_test_object: ClientTestObject, status: int
-    ):
+    ) -> None:
         """Test that get_devices raises ApiAuthenticationError when the key is rejected."""
 
         # Setup
@@ -360,7 +360,7 @@ class TestClient:
 
     async def test_get_devices_rate_limited_throws(
         self, client_session: ClientSession, client_test_object: ClientTestObject
-    ):
+    ) -> None:
         """Test that the wait requested by a 429 response is available to the caller."""
 
         # Setup
@@ -381,7 +381,7 @@ class TestClient:
     @pytest.mark.parametrize("status", [400, 404, 500])
     async def test_get_me_error_throws(
         self, client_session: ClientSession, client_test_object: ClientTestObject, status: int
-    ):
+    ) -> None:
         """Test that get_me raises a RuntimeError for any other failed response."""
 
         # Setup
@@ -399,7 +399,7 @@ class TestClient:
     @pytest.mark.parametrize("status", [400, 404, 500])
     async def test_get_devices_error_throws(
         self, client_session: ClientSession, client_test_object: ClientTestObject, status: int
-    ):
+    ) -> None:
         """Test that get_devices raises a RuntimeError for any other failed response."""
 
         # Setup
@@ -416,7 +416,7 @@ class TestClient:
 
     async def test_get_devices_raw(
         self, client_session: ClientSession, client_test_object: ClientTestObject
-    ):
+    ) -> None:
         """Test that get_devices_raw returns the response without parsing it."""
 
         # Setup
@@ -435,7 +435,7 @@ class TestClient:
 
     async def test_get_devices_raw_error_throws(
         self, client_session: ClientSession, client_test_object: ClientTestObject
-    ):
+    ) -> None:
         """Test that get_devices_raw raises a RuntimeError for a failed response."""
 
         # Setup
