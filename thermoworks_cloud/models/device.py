@@ -70,8 +70,8 @@ class Device:  # pylint: disable=too-many-instance-attributes
     All fields are optional as different device types may have different properties.
     The Node device type is known to have all these properties.
 
-    Deprecated: these fields only exist in Firebase. `ThermoworksClient` leaves them unset, and
-    they will be removed along with the Firebase implementation once the EU API is available:
+    Deprecated: these fields only exist in Firebase and `ThermoworksClient` leaves them unset.
+    Delete them along with `core.py` once the EU API is live, see the documentation there:
     `color`, `thumbnail`, `iot_device_id`, `account_id`, `status`, `big_query_info`,
     `recording_interval_in_seconds`, `pending_load`, `battery_alert_sent`, `export_version`,
     `last_purged`, `last_archive`, `last_telemetry_saved`, `last_wifi_connection`,
@@ -230,10 +230,15 @@ def _json_to_device(data: dict) -> Device:
     """Convert a device from the ThermoWorks API into a Device object.
 
     Most fields keep their Firebase meaning under a new name:
-    - `id` is `device_id`. Both it and `serial` have been observed to match the Firebase values.
-    - `model` is `device_name`, and `type` is unchanged. For a Node they are "node" and
+    - `id` is `device_id`. The API documentation makes it the authoritative identifier, since it
+      is required and `serial` can be null. On the one Node captured so far, both match the
+      Firebase values.
+    - `model` is `device_name`, and `type` is unchanged. On that Node they are "node" and
       "datalogger" in both.
     - `wifiSignal` is `wifi_strength`, and `gatewaySignal` is `gateway_rssi`.
+
+    `locationId` and `nextExpectedConnection` have no Firebase equivalent, so they are kept in
+    `additional_properties`.
 
     `displayUnits`, `batteryState` and `fan` are returned by the service but are not in the API
     documentation, so they could change without notice.

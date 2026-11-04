@@ -317,7 +317,9 @@ class TestClient:
 
         # Assert
         assert devices == refreshed_devices
-        assert devices[0].gateway_rssi is not None
+        assert devices[0].gateway_rssi == (
+            GET_DEVICES_API_WITH_GATEWAY_AND_FAN_RESPONSE["devices"][0]["gatewaySignal"]
+        )
 
     @pytest.mark.parametrize("status", [401, 403])
     async def test_get_me_rejected_key_throws(

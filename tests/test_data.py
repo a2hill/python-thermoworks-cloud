@@ -966,7 +966,8 @@ TEST_THERMOWORKS_API_KEY = "twk_test_key_id_test_secret"
 TEST_ETAG = 'W/"test-etag"'
 TEST_REFRESHED_ETAG = 'W/"test-refreshed-etag"'
 
-# Shape from the API documentation. No response has been captured for this endpoint.
+# Shape from the API documentation with invented values. No response has been captured for this
+# endpoint.
 GET_ME_RESPONSE = json.loads(
     """
 {
@@ -1031,8 +1032,8 @@ GET_DEVICES_API_RESPONSE = json.loads(
 }"""
 )
 
-# The actual response with every documented nullable field set to null, or absent, to show that
-# a device or channel without them still parses.
+# Hand-built rather than captured: the documented nullable fields are set to null or left out,
+# to show that a device or channel without them still parses.
 GET_DEVICES_API_NULLS_RESPONSE = json.loads(
     """
 {
@@ -1061,9 +1062,9 @@ GET_DEVICES_API_NULLS_RESPONSE = json.loads(
 }"""
 )
 
-# The actual response for a device reporting through a gateway with a connected fan. The fan's
-# fields are assumed to match Firebase, see GET_DEVICE_WITH_FAN_RESPONSE, because no response
-# with a fan has been captured.
+# Hand-built from the captured response above, for a device reporting through a gateway with a
+# connected fan. Neither has been captured, so the values are invented and the fan's field names
+# are assumed to match Firebase, see GET_DEVICE_WITH_FAN_RESPONSE.
 GET_DEVICES_API_WITH_GATEWAY_AND_FAN_RESPONSE = deepcopy(GET_DEVICES_API_RESPONSE)
 GET_DEVICES_API_WITH_GATEWAY_AND_FAN_RESPONSE["devices"][0].update({
     "gatewaySignal": -55,

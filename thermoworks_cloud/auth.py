@@ -1,4 +1,8 @@
-"""Manage authentication for the Thermoworks Cloud API."""
+"""Manage authentication for the Thermoworks Cloud API through Firebase.
+
+Deprecated: `thermoworks_cloud.client.ThermoworksClient` authenticates with an API key instead.
+Delete this module along with `core.py`. See the documentation there.
+"""
 
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta

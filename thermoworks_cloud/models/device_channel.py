@@ -58,9 +58,9 @@ class DeviceChannel:  # pylint: disable=too-many-instance-attributes
 
     All fields are optional as different device types may have different properties.
 
-    Deprecated: `show_avg_temp` and `MinMaxReading.date_reading` only exist in Firebase.
-    `ThermoworksClient` leaves them unset, and they will be removed along with the Firebase
-    implementation once the EU API is available.
+    Deprecated: `show_avg_temp` and `MinMaxReading.date_reading` only exist in Firebase and
+    `ThermoworksClient` leaves them unset. Delete them along with `core.py` once the EU API is
+    live, see the documentation there.
     """
 
     last_telemetry_saved: Optional[datetime] = field(
