@@ -1,7 +1,40 @@
 """Classes related to an Account."""
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, TypedDict
+
+
+class _ApiKeyResponse(TypedDict, total=False):
+    """The `apiKey` object in a response from the `/v1/me` API."""
+
+    id: str
+    name: str
+    scopes: List[str]
+    deviceIds: Optional[List[str]]
+
+
+class _PlanResponse(TypedDict, total=False):
+    """The `plan` object in a response from the `/v1/me` API."""
+
+    id: Optional[str]
+    apiTier: str
+
+
+class _RateLimitResponse(TypedDict, total=False):
+    """The `rateLimit` object in a response from the `/v1/me` API."""
+
+    perMinute: int
+    perDay: int
+
+
+class _AccountResponse(TypedDict, total=False):
+    """A response from the `/v1/me` API."""
+
+    accountId: str
+    apiKey: _ApiKeyResponse
+    plan: _PlanResponse
+    rateLimit: _RateLimitResponse
+    recommendedPollSeconds: int
 
 
 @dataclass
@@ -41,7 +74,7 @@ class Account:
     recommended_poll_seconds: Optional[int] = None
 
 
-def _json_to_account(data: dict) -> Account:
+def _json_to_account(data: _AccountResponse) -> Account:
     """Convert a response from the `/v1/me` API into an Account object."""
     api_key = data.get("apiKey")
     plan = data.get("plan")

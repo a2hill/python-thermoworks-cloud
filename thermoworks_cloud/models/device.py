@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import ClassVar, List, Optional, Dict
+from typing import ClassVar, List, Optional, Dict, TypedDict
 
 from thermoworks_cloud.utils import (
     parse_datetime,
@@ -11,7 +11,48 @@ from thermoworks_cloud.utils import (
     parse_nested_object,
 )
 
-from .device_channel import DeviceChannel, _json_to_device_channel
+from .device_channel import DeviceChannel, DeviceChannelResponse, _json_to_device_channel
+
+
+class _FanResponse(TypedDict, total=False):
+    """A fan in a response from the ThermoWorks API. This is not in the API documentation."""
+
+    connected: bool
+    channel: Optional[str]
+    setTemp: Optional[int]
+    state: Optional[int]
+
+
+class DeviceResponse(TypedDict, total=False):
+    """A device in a response from the ThermoWorks API.
+
+    `displayUnits`, `batteryState` and `fan` are not in the API documentation.
+    """
+
+    id: str
+    serial: Optional[str]
+    label: Optional[str]
+    model: Optional[str]
+    displayUnits: Optional[str]
+    type: Optional[str]
+    firmware: Optional[str]
+    locationId: Optional[str]
+    battery: Optional[float]
+    batteryState: Optional[str]
+    fan: Optional[_FanResponse]
+    wifiSignal: Optional[float]
+    gatewaySignal: Optional[float]
+    lastSeen: Optional[str]
+    nextExpectedConnection: Optional[str]
+    transmitIntervalSeconds: Optional[float]
+    channels: List[DeviceChannelResponse]
+
+
+class DevicesResponse(TypedDict):
+    """A response from the `/v1/devices` API."""
+
+    generatedAt: str
+    devices: List[DeviceResponse]
 
 
 @dataclass
@@ -107,21 +148,21 @@ class Device:  # pylint: disable=too-many-instance-attributes
     big_query_info: Optional[BigQueryInfo] = field(
         default=None, metadata={"api_name": "bigQuery"})
     fan: Optional[Fan] = None
-    battery: Optional[int] = field(
+    battery: Optional[float] = field(
         default=None,
         metadata={
             "firestore_type": "integerValue",
             "converter": int
         }
     )
-    wifi_strength: Optional[int] = field(
+    wifi_strength: Optional[float] = field(
         default=None,
         metadata={
             "api_name": "wifi_stength",
             "firestore_type": "integerValue", "converter": int
         }
     )
-    gateway_rssi: Optional[int] = field(
+    gateway_rssi: Optional[float] = field(
         default=None,
         metadata={
             "api_name": "gatewayRSSI",
@@ -131,7 +172,7 @@ class Device:  # pylint: disable=too-many-instance-attributes
     )
     recording_interval_in_seconds: Optional[int] = field(
         default=None, metadata={"firestore_type": "integerValue", "converter": int})
-    transmit_interval_in_seconds: Optional[int] = field(
+    transmit_interval_in_seconds: Optional[float] = field(
         default=None, metadata={"firestore_type": "integerValue", "converter": int})
     pending_load: Optional[bool] = field(
         default=None, metadata={"firestore_type": "booleanValue"})
@@ -171,8 +212,12 @@ class Device:  # pylint: disable=too-many-instance-attributes
     additional_properties: Optional[Dict] = None
 
     @property
-    def signal_strength(self) -> Optional[int]:
-        """Return gateway RSSI when present, otherwise Wi-Fi strength, in dBm."""
+    def signal_strength(self) -> Optional[float]:
+        """Return the signal of the device's own connection, in dBm.
+
+        Devices that report through an RFX gateway have `gateway_rssi`, while devices connected
+        directly over Wi-Fi only have `wifi_strength`.
+        """
         return self.gateway_rssi if self.gateway_rssi is not None else self.wifi_strength
 
 
@@ -204,7 +249,7 @@ def _document_to_device(document: dict) -> Device:
     return device
 
 
-def _json_to_fan(data: dict) -> Fan:
+def _json_to_fan(data: _FanResponse) -> Fan:
     """Convert a fan from the ThermoWorks API into a Fan object.
 
     The API documentation does not cover `fan` and no response with a connected fan has been
@@ -227,7 +272,7 @@ def _json_to_fan(data: dict) -> Fan:
     )
 
 
-def _json_to_device(data: dict) -> Device:
+def _json_to_device(data: DeviceResponse) -> Device:
     """Convert a device from the ThermoWorks API into a Device object.
 
     Most fields keep their Firebase meaning under a new name:

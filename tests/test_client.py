@@ -118,6 +118,7 @@ class TestClient:
         assert device.fan is None
         assert device.wifi_strength == expected["wifiSignal"]
         assert device.gateway_rssi is None
+        # Without a gateway signal, this is a Wi-Fi device reporting its Wi-Fi signal
         assert device.signal_strength == expected["wifiSignal"]
         assert iso_instant(device.last_seen) == expected["lastSeen"]
         assert device.transmit_interval_in_seconds == expected["transmitIntervalSeconds"]

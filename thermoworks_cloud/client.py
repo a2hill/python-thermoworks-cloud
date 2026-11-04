@@ -1,14 +1,14 @@
 """Accessor for the ThermoWorks Cloud API."""
 
 from http import HTTPStatus
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional, cast
 
 from aiohttp import ClientResponse, ClientSession
 
 from thermoworks_cloud.utils import format_client_response
 
 from .models.account import Account, _json_to_account
-from .models.device import Device, _json_to_device
+from .models.device import Device, DevicesResponse, _json_to_device
 
 
 class ApiAuthenticationError(Exception):
@@ -18,7 +18,7 @@ class ApiAuthenticationError(Exception):
         """Initialize the error."""
 
         super().__init__(message)
-        self.message = message
+        self.message: str = message
 
 
 class RateLimitError(RuntimeError):
@@ -33,8 +33,8 @@ class RateLimitError(RuntimeError):
         """
 
         super().__init__(message)
-        self.message = message
-        self.retry_after = retry_after
+        self.message: str = message
+        self.retry_after: Optional[int] = retry_after
 
 
 class ThermoworksClient:
@@ -52,11 +52,11 @@ class ThermoworksClient:
             api_key (str): An API key from the ThermoWorks Cloud web app.
             base_url (str): The root URL of the API. This differs between cloud providers.
         """
-        self._websession = websession
-        self._api_key = api_key
-        self._base_url = base_url.rstrip("/")
+        self._websession: ClientSession = websession
+        self._api_key: str = api_key
+        self._base_url: str = base_url.rstrip("/")
         self._etag: Optional[str] = None
-        self._devices: Optional[List[Device]] = None
+        self._devices: List[Device] = []
 
     async def get_me(self) -> Account:
         """Fetch information about the account and API key."""
@@ -82,14 +82,14 @@ class ThermoworksClient:
             return self._devices
 
         if response.ok:
-            devices_json = await response.json()
+            devices_json = cast(DevicesResponse, await response.json())
             self._devices = [_json_to_device(device) for device in devices_json["devices"]]
             self._etag = response.headers.get("ETag")
             return self._devices
 
         raise await self._response_error("Failed to get devices", response)
 
-    async def get_devices_raw(self) -> Dict[str, Any]:
+    async def get_devices_raw(self) -> DevicesResponse:
         """Fetch the unparsed response of the devices API, for diagnosing unsupported devices.
 
         This always returns a full response, so it does not use or update the ETag.
@@ -97,7 +97,7 @@ class ThermoworksClient:
 
         response = await self._request("v1/devices")
         if response.ok:
-            return await response.json()
+            return cast(DevicesResponse, await response.json())
 
         raise await self._response_error("Failed to get devices", response)
 

@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, Dict
+from typing import Optional, Dict, TypedDict
 
 from thermoworks_cloud.utils import (
     parse_datetime,
@@ -10,6 +10,35 @@ from thermoworks_cloud.utils import (
     map_firestore_fields,
     parse_nested_object,
 )
+
+
+class _AlarmResponse(TypedDict, total=False):
+    """An alarm in a response from the ThermoWorks API."""
+
+    enabled: bool
+    value: Optional[float]
+    alarming: bool
+
+
+class DeviceChannelResponse(TypedDict, total=False):
+    """A channel in a response from the ThermoWorks API."""
+
+    id: str
+    number: Optional[int]
+    label: Optional[str]
+    type: Optional[str]
+    enabled: bool
+    value: Optional[float]
+    units: Optional[str]
+    status: Optional[str]
+    probeFailed: bool
+    alarming: bool
+    alarmHigh: Optional[_AlarmResponse]
+    alarmLow: Optional[_AlarmResponse]
+    minimum: Optional[float]
+    maximum: Optional[float]
+    lastTelemetrySaved: Optional[str]
+    lastSeen: Optional[str]
 
 
 @dataclass
@@ -31,8 +60,8 @@ class Alarm:
         default=None, metadata={"firestore_type": "booleanValue"})
     alarming: Optional[bool] = field(
         default=None, metadata={"firestore_type": "booleanValue"})
-    value: Optional[int] = field(default=None, metadata={
-                                 "firestore_type": "integerValue", "converter": int})
+    value: Optional[float] = field(default=None, metadata={
+                                   "firestore_type": "integerValue", "converter": int})
     """"The units as a string like "F", "C", or "H" (for humidity)"""
     units: Optional[str] = field(default=None, metadata={
                                  "firestore_type": "stringValue"})
@@ -164,7 +193,7 @@ def _document_to_device_channel(document: dict) -> DeviceChannel:
     return device_channel
 
 
-def _json_to_alarm(data: Optional[dict], units: Optional[str]) -> Optional[Alarm]:
+def _json_to_alarm(data: Optional[_AlarmResponse], units: Optional[str]) -> Optional[Alarm]:
     """Convert an alarm from the ThermoWorks API into an Alarm object.
 
     Unlike Firebase, API alarms have no units of their own. They use the units of their channel.
@@ -193,7 +222,7 @@ def _json_to_min_max_reading(
     return MinMaxReading(reading=Reading(value=value, units=units))
 
 
-def _json_to_device_channel(data: dict) -> DeviceChannel:
+def _json_to_device_channel(data: DeviceChannelResponse) -> DeviceChannel:
     """Convert a channel from the ThermoWorks API into a DeviceChannel object.
 
     Firebase only has `number`. `id` has been observed to be the same number as a string, but it
