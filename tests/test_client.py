@@ -263,7 +263,7 @@ class TestClient:
         state: FanState,
         state_name: str,
     ) -> None:
-        """Return named fan states without changing the existing numeric contract."""
+        """Compare the existing integer states against named enum values."""
 
         # Setup
         client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(response)
@@ -288,8 +288,9 @@ class TestClient:
         assert device.fan.connection is True
         assert device.fan.fan_channel == expected_fan["channel"]
         assert device.fan.set_temp == expected_fan["setTemp"]
-        assert device.fan.state is state
+        assert device.fan.state == state
         assert isinstance(device.fan.state, int)
+        assert not isinstance(device.fan.state, FanState)
         assert device.fan.state_name == state_name
 
     @pytest.mark.parametrize(
@@ -337,7 +338,7 @@ class TestClient:
         assert device.fan.connection is False
         assert device.fan.fan_channel == expected_fan["channel"]
         assert device.fan.set_temp == expected_fan["setTemp"]
-        assert device.fan.state is state
+        assert device.fan.state == state
 
     @pytest.mark.parametrize(
         "response",
