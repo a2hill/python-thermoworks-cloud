@@ -2,7 +2,8 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import ClassVar, List, Optional, Dict, TypedDict
+from enum import IntEnum
+from typing import ClassVar, List, Optional, Dict, TypedDict, Union
 
 from thermoworks_cloud.utils import (
     parse_datetime,
@@ -65,14 +66,31 @@ class BigQueryInfo:
         default=None, metadata={"firestore_type": "stringValue"})
 
 
+class FanState(IntEnum):
+    """Known Billows operating states reported by Firebase and the API."""
+
+    PAUSED = 0
+    BLOWING = 1
+    PULSING = 2
+
+
+def _parse_fan_state(value: Union[int, str]) -> Union[FanState, int]:
+    """Name known states while preserving future state codes as integers."""
+    number = int(value)
+    try:
+        return FanState(number)
+    except ValueError:
+        return number
+
+
 @dataclass
 class Fan:
     """Fan contains information about a fan accessory connected to a device."""
 
     STATE_NAMES: ClassVar[Dict[int, str]] = {
-        0: "Paused",
-        1: "Blowing",
-        2: "Pulsing",
+        FanState.PAUSED: "Paused",
+        FanState.BLOWING: "Blowing",
+        FanState.PULSING: "Pulsing",
     }
 
     connected: Optional[bool] = field(
@@ -91,8 +109,10 @@ class Fan:
             "converter": int,
         },
     )
-    state: Optional[int] = field(
-        default=None, metadata={"firestore_type": "integerValue", "converter": int})
+    # IntEnum keeps existing numeric comparisons and serialization compatible.
+    # Unknown vendor codes remain integers rather than failing the entire device.
+    state: Optional[Union[FanState, int]] = field(
+        default=None, metadata={"firestore_type": "integerValue", "converter": _parse_fan_state})
 
     additional_properties: Optional[Dict] = None
 
@@ -263,13 +283,14 @@ def _json_to_fan(data: _FanResponse) -> Fan:
         key: value for key, value in data.items() if key not in known_fields
     }
     fan_channel = data.get("channel")
+    state = data.get("state")
 
     return Fan(
         connected=data.get("connected"),
         connection=data.get("connected"),
         fan_channel=str(fan_channel) if fan_channel is not None else None,
         set_temp=data.get("setTemp"),
-        state=data.get("state"),
+        state=_parse_fan_state(state) if state is not None else None,
         additional_properties=additional_properties or None,
     )
 
