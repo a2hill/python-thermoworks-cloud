@@ -12,9 +12,10 @@ from aiohttp import ClientError, ClientSession, ClientTimeout, ContentTypeError
 from .models.device import Device
 from .models.device_channel import DeviceChannel
 from .models.snapshot import _parse_device
+from .core import ResourceNotFoundError
 
 
-class ApiError(Exception):
+class ApiError(RuntimeError):
     """Base error for the ThermoWorks integrations API."""
 
 
@@ -96,6 +97,22 @@ class ThermoworksClient:
     def get_device_channels(self, device_identifier: str) -> list[DeviceChannel]:
         """Return channels from the most recent device snapshot."""
         return self._channels.get(device_identifier, [])
+
+    async def get_device(self, device_serial: str) -> Device:
+        """Fetch a device by serial number using the current API snapshot."""
+        devices = await self.get_devices()
+        for device in devices:
+            if device.serial == device_serial or device.device_id == device_serial:
+                return device
+        raise ResourceNotFoundError("Device not found")
+
+    async def get_device_channel(self, device_serial: str, channel: str) -> DeviceChannel:
+        """Fetch a channel through the same interface as the Firebase client."""
+        device = await self.get_device(device_serial)
+        for device_channel in self.get_device_channels(device.device_id or device.serial):
+            if device_channel.number == str(channel):
+                return device_channel
+        raise ResourceNotFoundError("Device channel not found")
 
     async def _request_json(self, path: str) -> dict[str, Any]:
         status, _, payload = await self._request(path)

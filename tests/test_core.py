@@ -26,7 +26,7 @@ from tests.test_data import (
     TEST_ARCHIVE_ID_0,
 )
 from thermoworks_cloud.auth import Auth
-from thermoworks_cloud import ResourceNotFoundError, ThermoworksCloud
+from thermoworks_cloud import ResourceNotFoundError, ThermoworksCloud, ThermoworksClient
 
 
 def iso_instant(datetime_input: datetime) -> str:
@@ -324,8 +324,15 @@ class TestCore:  # pylint: disable=too-many-public-methods
         assert device.device_name == get_field_value(
             GET_DEVICE_RESPONSE, "device")
 
+    @pytest.mark.parametrize("backend", ["firebase", "api"])
     async def test_get_device_4xx_throws(
-        self, auth: Auth, core_test_object: CoreTestObject
+        self,
+        auth: Auth,
+        core_test_object: CoreTestObject,
+        backend,
+        client_session,
+        httpserver,
+        httpserver_endpoint,
     ):
         """Test the get_device method of ThermoworksCloud when a 4xx error is returned.
 
@@ -336,17 +343,28 @@ class TestCore:  # pylint: disable=too-many-public-methods
         This test checks if the get_device method raises an exception when a 4xx error is returned.
         """
         # Setup
-        core_test_object.expect_get_device(
-            access_token=TEST_ID_TOKEN, device_serial=TEST_DEVICE_ID_0
-        ).respond_with_data(status=400, response_data=b"Bad Request")
-        thermoworks_cloud = ThermoworksCloud(auth)
+        if backend == "api":
+            httpserver.expect_request("/v1/devices").respond_with_data(status=400)
+            thermoworks_cloud = ThermoworksClient(client_session, "test-key", httpserver_endpoint)
+        else:
+            core_test_object.expect_get_device(
+                access_token=TEST_ID_TOKEN, device_serial=TEST_DEVICE_ID_0
+            ).respond_with_data(status=400, response_data=b"Bad Request")
+            thermoworks_cloud = ThermoworksCloud(auth)
 
         # Act
         with pytest.raises(RuntimeError):
             await thermoworks_cloud.get_device(TEST_DEVICE_ID_0)
 
+    @pytest.mark.parametrize("backend", ["firebase", "api"])
     async def test_get_device_5xx_throws(
-        self, auth: Auth, core_test_object: CoreTestObject
+        self,
+        auth: Auth,
+        core_test_object: CoreTestObject,
+        backend,
+        client_session,
+        httpserver,
+        httpserver_endpoint,
     ):
         """Test the get_device method of ThermoworksCloud when a 5xx error is returned.
 
@@ -357,10 +375,14 @@ class TestCore:  # pylint: disable=too-many-public-methods
         This test checks if the get_device method raises an exception when a 4xx error is returned.
         """
         # Setup
-        core_test_object.expect_get_device(
-            access_token=TEST_ID_TOKEN, device_serial=TEST_DEVICE_ID_0
-        ).respond_with_data(status=500, response_data=b"Internal error")
-        thermoworks_cloud = ThermoworksCloud(auth)
+        if backend == "api":
+            httpserver.expect_request("/v1/devices").respond_with_data(status=500)
+            thermoworks_cloud = ThermoworksClient(client_session, "test-key", httpserver_endpoint)
+        else:
+            core_test_object.expect_get_device(
+                access_token=TEST_ID_TOKEN, device_serial=TEST_DEVICE_ID_0
+            ).respond_with_data(status=500, response_data=b"Internal error")
+            thermoworks_cloud = ThermoworksCloud(auth)
 
         # Act
         with pytest.raises(RuntimeError):
@@ -564,8 +586,15 @@ class TestCore:  # pylint: disable=too-many-public-methods
         assert channel.maximum.reading.value == 91.26999999999998
         assert channel.maximum.reading.units == "H"
 
+    @pytest.mark.parametrize("backend", ["firebase", "api"])
     async def test_get_device_channel_4xx_throws(
-        self, auth: Auth, core_test_object: CoreTestObject
+        self,
+        auth: Auth,
+        core_test_object: CoreTestObject,
+        backend,
+        client_session,
+        httpserver,
+        httpserver_endpoint,
     ):
         """Test the get_device_channel method of ThermoworksCloud when a 4xx error is returned.
 
@@ -579,21 +608,30 @@ class TestCore:  # pylint: disable=too-many-public-methods
         # Setup
         test_device_serial = "test_device_serial"
         test_device_channel = "test_device_channel"
-        core_test_object.expect_get_device_channel(
-            access_token=TEST_ID_TOKEN,
-            device_serial=test_device_serial,
-            channel=test_device_channel,
-        ).respond_with_data(status=400, response_data=b"Bad Request")
-        thermoworks_cloud = ThermoworksCloud(auth)
+        if backend == "api":
+            httpserver.expect_request("/v1/devices").respond_with_data(status=400)
+            thermoworks_cloud = ThermoworksClient(client_session, "test-key", httpserver_endpoint)
+        else:
+            core_test_object.expect_get_device_channel(
+                access_token=TEST_ID_TOKEN,
+                device_serial=test_device_serial,
+                channel=test_device_channel,
+            ).respond_with_data(status=400, response_data=b"Bad Request")
+            thermoworks_cloud = ThermoworksCloud(auth)
 
         # Act
         with pytest.raises(RuntimeError):
-            await thermoworks_cloud.get_device_channel(
-                test_device_serial, test_device_channel
-            )
+            await thermoworks_cloud.get_device_channel(test_device_serial, test_device_channel)
 
+    @pytest.mark.parametrize("backend", ["firebase", "api"])
     async def test_get_device_channel_5xx_throws(
-        self, auth: Auth, core_test_object: CoreTestObject
+        self,
+        auth: Auth,
+        core_test_object: CoreTestObject,
+        backend,
+        client_session,
+        httpserver,
+        httpserver_endpoint,
     ):
         """Test the get_device_channel method of ThermoworksCloud when a 5xx error is returned.
 
@@ -607,18 +645,20 @@ class TestCore:  # pylint: disable=too-many-public-methods
         # Setup
         test_device_serial = "test_device_serial"
         test_device_channel = "test_device_channel"
-        core_test_object.expect_get_device_channel(
-            access_token=TEST_ID_TOKEN,
-            device_serial=test_device_serial,
-            channel=test_device_channel,
-        ).respond_with_data(status=500, response_data=b"Internal error")
-        thermoworks_cloud = ThermoworksCloud(auth)
+        if backend == "api":
+            httpserver.expect_request("/v1/devices").respond_with_data(status=500)
+            thermoworks_cloud = ThermoworksClient(client_session, "test-key", httpserver_endpoint)
+        else:
+            core_test_object.expect_get_device_channel(
+                access_token=TEST_ID_TOKEN,
+                device_serial=test_device_serial,
+                channel=test_device_channel,
+            ).respond_with_data(status=500, response_data=b"Internal error")
+            thermoworks_cloud = ThermoworksCloud(auth)
 
         # Act
         with pytest.raises(RuntimeError):
-            await thermoworks_cloud.get_device_channel(
-                test_device_serial, test_device_channel
-            )
+            await thermoworks_cloud.get_device_channel(test_device_serial, test_device_channel)
 
     async def test_get_device_channel_exception_throws(self, auth: Auth):
         """Test the get_device_channel method of ThermoworksCloud when an exception is thrown

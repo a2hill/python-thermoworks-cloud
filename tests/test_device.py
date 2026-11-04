@@ -11,14 +11,16 @@ from tests.test_data import (
     TEST_DEVICE_ID_0,
     TEST_ID_TOKEN,
 )
-from thermoworks_cloud import ThermoworksCloud
+from thermoworks_cloud import ThermoworksCloud, ThermoworksClient
 from thermoworks_cloud.auth import Auth
 
 
 async def _get_device_from_response(
-    auth: Auth, core_test_object: CoreTestObject, response: dict
+    auth: Auth, core_test_object: CoreTestObject, response: dict, api_client=None
 ):
     """Return a parsed device from a mocked response."""
+    if api_client is not None:
+        return await api_client.get_device(TEST_DEVICE_ID_0)
     core_test_object.expect_get_device(
         access_token=TEST_ID_TOKEN, device_serial=TEST_DEVICE_ID_0
     ).respond_with_json(response)
@@ -26,12 +28,35 @@ async def _get_device_from_response(
     return await ThermoworksCloud(auth).get_device(TEST_DEVICE_ID_0)
 
 
+@pytest.mark.parametrize("backend", ["firebase", "api"])
 async def test_get_device_with_gateway_rssi(
-    auth: Auth, core_test_object: CoreTestObject
+    auth: Auth,
+    core_test_object: CoreTestObject,
+    backend,
+    client_session,
+    httpserver,
+    httpserver_endpoint,
 ):
     """Test parsing gateway RSSI from an RFX meat probe device."""
+    api_client = None
+    if backend == "api":
+        httpserver.expect_request("/v1/devices").respond_with_json(
+            {
+                "devices": [
+                    {
+                        "id": TEST_DEVICE_ID_0,
+                        "serial": TEST_DEVICE_ID_0,
+                        "type": "rfx",
+                        "model": "rfx meat",
+                        "gatewaySignal": -55,
+                        "channels": [],
+                    }
+                ]
+            }
+        )
+        api_client = ThermoworksClient(client_session, "test-key", httpserver_endpoint)
     device = await _get_device_from_response(
-        auth, core_test_object, GET_DEVICE_WITH_GATEWAY_RSSI_RESPONSE
+        auth, core_test_object, GET_DEVICE_WITH_GATEWAY_RSSI_RESPONSE, api_client
     )
 
     assert device.gateway_rssi == -55
@@ -41,9 +66,7 @@ async def test_get_device_with_gateway_rssi(
 
 async def test_get_device_with_fan(auth: Auth, core_test_object: CoreTestObject):
     """Test parsing a connected fan accessory from a device."""
-    device = await _get_device_from_response(
-        auth, core_test_object, GET_DEVICE_WITH_FAN_RESPONSE
-    )
+    device = await _get_device_from_response(auth, core_test_object, GET_DEVICE_WITH_FAN_RESPONSE)
 
     assert device.fan is not None
     assert device.fan.connected is True
@@ -75,9 +98,7 @@ async def test_get_device_fan_state_name(
     assert device.fan.state_name == state_name
 
 
-async def test_get_device_with_disconnected_fan(
-    auth: Auth, core_test_object: CoreTestObject
-):
+async def test_get_device_with_disconnected_fan(auth: Auth, core_test_object: CoreTestObject):
     """Test parsing a fan accessory when it is present but disconnected."""
     device = await _get_device_from_response(
         auth, core_test_object, GET_DEVICE_WITH_DISCONNECTED_FAN_RESPONSE
