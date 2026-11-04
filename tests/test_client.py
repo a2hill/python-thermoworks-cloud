@@ -56,12 +56,15 @@ class TestClient:
 
         # Assert
         assert account.account_id == GET_ME_RESPONSE["accountId"]
+        assert account.api_key is not None
         assert account.api_key.id == GET_ME_RESPONSE["apiKey"]["id"]
         assert account.api_key.name == GET_ME_RESPONSE["apiKey"]["name"]
         assert account.api_key.scopes == GET_ME_RESPONSE["apiKey"]["scopes"]
         assert account.api_key.device_ids == GET_ME_RESPONSE["apiKey"]["deviceIds"]
+        assert account.plan is not None
         assert account.plan.id == GET_ME_RESPONSE["plan"]["id"]
         assert account.plan.api_tier == GET_ME_RESPONSE["plan"]["apiTier"]
+        assert account.rate_limit is not None
         assert account.rate_limit.per_minute == GET_ME_RESPONSE["rateLimit"]["perMinute"]
         assert account.rate_limit.per_day == GET_ME_RESPONSE["rateLimit"]["perDay"]
         assert account.recommended_poll_seconds == GET_ME_RESPONSE["recommendedPollSeconds"]
@@ -120,6 +123,7 @@ class TestClient:
         assert device.gateway_rssi is None
         # Without a gateway signal, this is a Wi-Fi device reporting its Wi-Fi signal
         assert device.signal_strength == expected["wifiSignal"]
+        assert device.last_seen is not None
         assert iso_instant(device.last_seen) == expected["lastSeen"]
         assert device.transmit_interval_in_seconds == expected["transmitIntervalSeconds"]
         assert device.additional_properties == {
@@ -145,6 +149,7 @@ class TestClient:
         devices = await client.get_devices()
 
         # Assert
+        assert devices[0].channels is not None
         assert len(devices[0].channels) == 1
         channel = devices[0].channels[0]
         assert channel.number == str(expected["number"])
@@ -153,7 +158,9 @@ class TestClient:
         assert channel.value == expected["value"]
         assert channel.units == expected["units"]
         assert channel.status == expected["status"]
+        assert channel.last_telemetry_saved is not None
         assert iso_instant(channel.last_telemetry_saved) == expected["lastTelemetrySaved"]
+        assert channel.last_seen is not None
         assert iso_instant(channel.last_seen) == expected["lastSeen"]
         assert channel.additional_properties == {
             "id": expected["id"],
@@ -177,13 +184,17 @@ class TestClient:
         expected = GET_DEVICES_API_RESPONSE["devices"][0]["channels"][0]
 
         # Act
-        channel = (await client.get_devices())[0].channels[0]
+        device = (await client.get_devices())[0]
 
         # Assert
+        assert device.channels is not None
+        channel = device.channels[0]
+        assert channel.alarm_high is not None
         assert channel.alarm_high.enabled == expected["alarmHigh"]["enabled"]
         assert channel.alarm_high.alarming == expected["alarmHigh"]["alarming"]
         assert channel.alarm_high.value == expected["alarmHigh"]["value"]
         assert channel.alarm_high.units == expected["units"]
+        assert channel.alarm_low is not None
         assert channel.alarm_low.enabled == expected["alarmLow"]["enabled"]
         assert channel.alarm_low.alarming == expected["alarmLow"]["alarming"]
         assert channel.alarm_low.value == expected["alarmLow"]["value"]
@@ -204,12 +215,18 @@ class TestClient:
         expected = GET_DEVICES_API_RESPONSE["devices"][0]["channels"][0]
 
         # Act
-        channel = (await client.get_devices())[0].channels[0]
+        device = (await client.get_devices())[0]
 
         # Assert
+        assert device.channels is not None
+        channel = device.channels[0]
+        assert channel.minimum is not None
+        assert channel.minimum.reading is not None
         assert channel.minimum.reading.value == expected["minimum"]
         assert channel.minimum.reading.units == expected["units"]
         assert channel.minimum.date_reading is None
+        assert channel.maximum is not None
+        assert channel.maximum.reading is not None
         assert channel.maximum.reading.value == expected["maximum"]
         assert channel.maximum.reading.units == expected["units"]
         assert channel.maximum.date_reading is None
@@ -234,6 +251,7 @@ class TestClient:
         # Assert
         assert device.gateway_rssi == expected["gatewaySignal"]
         assert device.signal_strength == expected["gatewaySignal"]
+        assert device.fan is not None
         assert device.fan.connected == expected["fan"]["connected"]
         assert device.fan.connection == expected["fan"]["connected"]
         assert device.fan.fan_channel == expected["fan"]["channel"]
@@ -259,6 +277,7 @@ class TestClient:
         # Assert
         assert device.serial is None
         assert device.last_seen is None
+        assert device.channels is not None
         channel = device.channels[0]
         assert channel.number is None
         assert channel.alarm_high is None
