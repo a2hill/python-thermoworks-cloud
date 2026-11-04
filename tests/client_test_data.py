@@ -106,15 +106,13 @@ GET_DEVICES_API_NULLS_RESPONSE = json.loads(
 
 # Hand-built from the captured response above, for a device reporting through a gateway with a
 # connected fan. Neither has been captured, so the values are invented and the fan's field names
-# are assumed to match Firebase, see
-# GET_DEVICE_WITH_FAN_RESPONSE in test_data.py.
+# come from the mapping in ha-thermoworks-cloud pull request 47.
 GET_DEVICES_API_WITH_GATEWAY_AND_FAN_RESPONSE = deepcopy(GET_DEVICES_API_RESPONSE)
 GET_DEVICES_API_WITH_GATEWAY_AND_FAN_RESPONSE["devices"][0].update({
     "gatewaySignal": -55,
     "fan": {
         "connected": True,
-        "connection": True,
-        "fan_channel": "1",
+        "channel": "1",
         "setTemp": 150,
         "state": 1,
     },

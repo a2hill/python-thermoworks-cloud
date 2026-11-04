@@ -208,17 +208,18 @@ def _json_to_fan(data: dict) -> Fan:
     """Convert a fan from the ThermoWorks API into a Fan object.
 
     The API documentation does not cover `fan` and no response with a connected fan has been
-    captured yet, so this assumes it uses the same field names as Firebase.
+    captured yet. These field names come from the mapping in ha-thermoworks-cloud pull request 47.
+    Unlike Firebase, the API has no separate `connection` field.
     """
-    known_fields = {"connected", "connection", "fan_channel", "setTemp", "state"}
+    known_fields = {"connected", "channel", "setTemp", "state"}
     additional_properties = {
         key: value for key, value in data.items() if key not in known_fields
     }
-    fan_channel = data.get("fan_channel")
+    fan_channel = data.get("channel")
 
     return Fan(
         connected=data.get("connected"),
-        connection=data.get("connection"),
+        connection=data.get("connected"),
         fan_channel=str(fan_channel) if fan_channel is not None else None,
         set_temp=data.get("setTemp"),
         state=data.get("state"),

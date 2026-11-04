@@ -234,8 +234,8 @@ class TestClient:
         assert device.gateway_rssi == expected["gatewaySignal"]
         assert device.signal_strength == expected["gatewaySignal"]
         assert device.fan.connected == expected["fan"]["connected"]
-        assert device.fan.connection == expected["fan"]["connection"]
-        assert device.fan.fan_channel == expected["fan"]["fan_channel"]
+        assert device.fan.connection == expected["fan"]["connected"]
+        assert device.fan.fan_channel == expected["fan"]["channel"]
         assert device.fan.set_temp == expected["fan"]["setTemp"]
         assert device.fan.state == expected["fan"]["state"]
 
