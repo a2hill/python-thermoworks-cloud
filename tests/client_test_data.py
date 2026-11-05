@@ -254,4 +254,34 @@ GET_DEVICES_API_BILLOWS_DISCONNECTED_PULSING_RESPONSE = _response_with_fan_state
 GET_DEVICES_API_BILLOWS_UNKNOWN_RESPONSE = _response_with_fan_state(99)
 GET_DEVICES_API_BILLOWS_NULL_STATE_RESPONSE = _response_with_fan_state(None)
 
+def _response_with_channel_flag(*, flag: str, value: bool) -> DevicesResponse:
+    """Vary one reported channel flag independently of the others."""
+    response = deepcopy(GET_DEVICES_API_RESPONSE)
+    response["devices"][0]["channels"][0][flag] = value
+    return response
+
+
+GET_DEVICES_API_DISABLED_CHANNEL_RESPONSE = _response_with_channel_flag(
+    flag="enabled", value=False
+)
+GET_DEVICES_API_FAILED_PROBE_RESPONSE = _response_with_channel_flag(
+    flag="probeFailed", value=True
+)
+GET_DEVICES_API_ALARMING_CHANNEL_RESPONSE = _response_with_channel_flag(
+    flag="alarming", value=True
+)
+GET_DEVICES_API_MISSING_CHANNEL_FLAGS_RESPONSE = deepcopy(GET_DEVICES_API_RESPONSE)
+for _flag in ("enabled", "probeFailed", "alarming"):
+    del GET_DEVICES_API_MISSING_CHANNEL_FLAGS_RESPONSE["devices"][0]["channels"][0][_flag]
+
+# Based on the NO PROBE channel excerpt in the issue below; remaining fields are representative.
+# https://github.com/a2hill/ha-thermoworks-cloud/issues/46#issuecomment-6633350372
+# A current device can retain a historical channel value despite reassuring boolean flags.
+GET_DEVICES_API_NO_PROBE_RESPONSE = deepcopy(GET_DEVICES_API_RESPONSE)
+GET_DEVICES_API_NO_PROBE_RESPONSE["devices"][0]["channels"][0].update({
+    "status": "NO PROBE",
+    "value": 76.8,
+    "lastTelemetrySaved": "2026-09-09T12:49:36.000Z",
+})
+
 ERROR_RESPONSE = {"error": {"code": "invalid_api_key", "message": "Invalid API key"}}

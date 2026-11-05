@@ -105,7 +105,7 @@ class DeviceChannel:  # pylint: disable=too-many-instance-attributes
     """"The units as a string like "F", "C", or "H" (for humidity)"""
     units: Optional[str] = field(default=None, metadata={
                                  "firestore_type": "stringValue"})
-    """"The only observed value for this field is "NORMAL"."""
+    """"The vendor's channel status, including "NORMAL", "LOW" and "NO PROBE"."""
     status: Optional[str] = field(default=None, metadata={
                                   "firestore_type": "stringValue"})
     type: Optional[str] = field(default=None, metadata={
@@ -140,6 +140,21 @@ class DeviceChannel:  # pylint: disable=too-many-instance-attributes
 
     # Dictionary to store any additional properties not explicitly defined
     additional_properties: Optional[Dict] = None
+
+    @property
+    def enabled(self) -> Optional[bool]:
+        """Return the channel's enabled flag, or None when it was not supplied."""
+        return (self.additional_properties or {}).get("enabled")
+
+    @property
+    def probe_failed(self) -> Optional[bool]:
+        """Return the reported probe failure flag, independently of channel status."""
+        return (self.additional_properties or {}).get("probeFailed")
+
+    @property
+    def alarming(self) -> Optional[bool]:
+        """Return the channel-level alarm flag, or None when it was not supplied."""
+        return (self.additional_properties or {}).get("alarming")
 
 
 def _parse_min_max_reading(data: dict) -> Optional[MinMaxReading]:
@@ -230,7 +245,8 @@ def _json_to_device_channel(
 
     Firebase only has `number`. `id` has been observed to be the same number as a string, but it
     is kept in `additional_properties` along with the other API fields that have no Firebase
-    equivalent: `enabled`, `alarming` and `probeFailed`.
+    equivalent: `enabled`, `alarming` and `probeFailed`. Read-only flag properties expose
+    those entries without removing them from `additional_properties`.
 
     Temperature readings and extrema use channel units, but alarm thresholds use the device's
     display units. Leave temperature alarm units unknown when display units are unavailable.

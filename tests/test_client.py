@@ -14,6 +14,11 @@ from tests.client_test_data import (
     ERROR_RESPONSE,
     GET_DEVICES_API_NULLS_RESPONSE,
     GET_DEVICES_API_RESPONSE,
+    GET_DEVICES_API_DISABLED_CHANNEL_RESPONSE,
+    GET_DEVICES_API_FAILED_PROBE_RESPONSE,
+    GET_DEVICES_API_ALARMING_CHANNEL_RESPONSE,
+    GET_DEVICES_API_MISSING_CHANNEL_FLAGS_RESPONSE,
+    GET_DEVICES_API_NO_PROBE_RESPONSE,
     GET_DEVICES_API_CELSIUS_DISPLAY_RESPONSE,
     GET_DEVICES_API_NULL_DISPLAY_UNITS_RESPONSE,
     GET_DEVICES_API_MISSING_DISPLAY_UNITS_RESPONSE,
@@ -171,6 +176,9 @@ class TestClient:
         assert channel.value == expected["value"]
         assert channel.units == expected["units"]
         assert channel.status == expected["status"]
+        assert channel.enabled == expected["enabled"]
+        assert channel.probe_failed == expected["probeFailed"]
+        assert channel.alarming == expected["alarming"]
         assert channel.last_telemetry_saved is not None
         assert iso_instant(channel.last_telemetry_saved) == expected["lastTelemetrySaved"]
         assert channel.last_seen is not None
@@ -721,3 +729,98 @@ class TestTemperatureAlarmUnits:
         assert channel.alarm_low is not None
         assert channel.alarm_low.value == expected_low["value"]
         assert channel.alarm_low.units is None
+
+
+class TestChannelMetadata:
+    """Expose reported channel facts without imposing an availability or expiry policy."""
+
+    @pytest.mark.parametrize(
+        "response",
+        [
+            pytest.param(GET_DEVICES_API_DISABLED_CHANNEL_RESPONSE, id="disabled"),
+            pytest.param(GET_DEVICES_API_FAILED_PROBE_RESPONSE, id="probe-failed"),
+            pytest.param(GET_DEVICES_API_ALARMING_CHANNEL_RESPONSE, id="alarming"),
+        ],
+    )
+    async def test_channel_flags_are_exposed_without_removing_additional_properties(
+        self,
+        client_session: ClientSession,
+        client_test_object: ClientTestObject,
+        response: DevicesResponse,
+    ) -> None:
+        """Expose both true and false flags while retaining the previous dictionary interface."""
+
+        # Setup
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(response)
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
+        expected = response["devices"][0]["channels"][0]
+
+        # Act
+        device = (await client.get_devices())[0]
+
+        # Assert
+        assert device.channels is not None
+        channel = device.channels[0]
+        assert channel.enabled == expected["enabled"]
+        assert channel.probe_failed == expected["probeFailed"]
+        assert channel.alarming == expected["alarming"]
+        assert channel.additional_properties is not None
+        assert channel.additional_properties["enabled"] == expected["enabled"]
+        assert channel.additional_properties["probeFailed"] == expected["probeFailed"]
+        assert channel.additional_properties["alarming"] == expected["alarming"]
+
+    async def test_missing_channel_flags_remain_unknown(
+        self, client_session: ClientSession, client_test_object: ClientTestObject
+    ) -> None:
+        """Missing metadata must not be interpreted as a healthy or failed probe."""
+
+        # Setup
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(
+            GET_DEVICES_API_MISSING_CHANNEL_FLAGS_RESPONSE
+        )
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
+
+        # Act
+        device = (await client.get_devices())[0]
+
+        # Assert
+        assert device.channels is not None
+        channel = device.channels[0]
+        assert channel.enabled is None
+        assert channel.probe_failed is None
+        assert channel.alarming is None
+
+    async def test_no_probe_preserves_status_and_measurement_timestamp(
+        self, client_session: ClientSession, client_test_object: ClientTestObject
+    ) -> None:
+        """A live device and non-failing flags must not obscure an old channel measurement."""
+
+        # Setup
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(
+            GET_DEVICES_API_NO_PROBE_RESPONSE
+        )
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
+        expected_device = GET_DEVICES_API_NO_PROBE_RESPONSE["devices"][0]
+        expected = expected_device["channels"][0]
+
+        # Act
+        device = (await client.get_devices())[0]
+
+        # Assert
+        assert device.channels is not None
+        channel = device.channels[0]
+        assert channel.status == expected["status"]
+        assert channel.value == expected["value"]
+        assert channel.enabled == expected["enabled"]
+        assert channel.probe_failed == expected["probeFailed"]
+        assert channel.last_telemetry_saved is not None
+        assert iso_instant(channel.last_telemetry_saved) == expected["lastTelemetrySaved"]
+        assert device.last_seen is not None
+        assert iso_instant(device.last_seen) == expected_device["lastSeen"]
+        assert channel.last_telemetry_saved < device.last_seen
