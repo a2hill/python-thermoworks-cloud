@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from typing import Optional, Dict, TypedDict
 
 from thermoworks_cloud.utils import (
@@ -39,6 +40,18 @@ class DeviceChannelResponse(TypedDict, total=False):
     maximum: Optional[float]
     lastTelemetrySaved: Optional[str]
     lastSeen: Optional[str]
+
+
+class ChannelStatus(str, Enum):
+    """Observed status values for comparison with the unchanged vendor status string.
+
+    NORMAL and LOW occur in the contributed RFX captures; NO PROBE was reported in issue #46.
+    This is not an exhaustive vendor status definition, and unknown strings remain readable.
+    """
+
+    NORMAL = "NORMAL"
+    LOW = "LOW"
+    NO_PROBE = "NO PROBE"
 
 
 @dataclass
@@ -105,7 +118,7 @@ class DeviceChannel:  # pylint: disable=too-many-instance-attributes
     """"The units as a string like "F", "C", or "H" (for humidity)"""
     units: Optional[str] = field(default=None, metadata={
                                  "firestore_type": "stringValue"})
-    """"The vendor's channel status, including "NORMAL", "LOW" and "NO PROBE"."""
+    """The vendor status string; compare observed values with ChannelStatus."""
     status: Optional[str] = field(default=None, metadata={
                                   "firestore_type": "stringValue"})
     type: Optional[str] = field(default=None, metadata={
@@ -138,23 +151,15 @@ class DeviceChannel:  # pylint: disable=too-many-instance-attributes
         }
     )
 
+    enabled: Optional[bool] = field(
+        default=None, metadata={"firestore_type": "booleanValue"})
+    probe_failed: Optional[bool] = field(
+        default=None, metadata={"firestore_type": "booleanValue"})
+    alarming: Optional[bool] = field(
+        default=None, metadata={"firestore_type": "booleanValue"})
+
     # Dictionary to store any additional properties not explicitly defined
     additional_properties: Optional[Dict] = None
-
-    @property
-    def enabled(self) -> Optional[bool]:
-        """Return the channel's enabled flag, or None when it was not supplied."""
-        return (self.additional_properties or {}).get("enabled")
-
-    @property
-    def probe_failed(self) -> Optional[bool]:
-        """Return the reported probe failure flag, independently of channel status."""
-        return (self.additional_properties or {}).get("probeFailed")
-
-    @property
-    def alarming(self) -> Optional[bool]:
-        """Return the channel-level alarm flag, or None when it was not supplied."""
-        return (self.additional_properties or {}).get("alarming")
 
 
 def _parse_min_max_reading(data: dict) -> Optional[MinMaxReading]:
@@ -244,9 +249,8 @@ def _json_to_device_channel(
     """Convert a channel from the ThermoWorks API into a DeviceChannel object.
 
     Firebase only has `number`. `id` has been observed to be the same number as a string, but it
-    is kept in `additional_properties` along with the other API fields that have no Firebase
-    equivalent: `enabled`, `alarming` and `probeFailed`. Read-only flag properties expose
-    those entries without removing them from `additional_properties`.
+    is kept in `additional_properties`. Channel flags are mapped to their named model fields
+    rather than retained as additional properties.
 
     Temperature readings and extrema use channel units, but alarm thresholds use the device's
     display units. Leave temperature alarm units unknown when display units are unavailable.
@@ -259,6 +263,9 @@ def _json_to_device_channel(
         "value",
         "units",
         "status",
+        "enabled",
+        "probeFailed",
+        "alarming",
         "alarmHigh",
         "alarmLow",
         "minimum",
@@ -280,6 +287,9 @@ def _json_to_device_channel(
         value=data.get("value"),
         units=units,
         status=data.get("status"),
+        enabled=data.get("enabled"),
+        probe_failed=data.get("probeFailed"),
+        alarming=data.get("alarming"),
         alarm_high=_json_to_alarm(data.get("alarmHigh"), alarm_units),
         alarm_low=_json_to_alarm(data.get("alarmLow"), alarm_units),
         minimum=_json_to_min_max_reading(data.get("minimum"), units),

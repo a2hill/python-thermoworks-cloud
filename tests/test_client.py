@@ -174,9 +174,6 @@ class TestClient:
         assert iso_instant(channel.last_seen) == expected["lastSeen"]
         assert channel.additional_properties == {
             "id": expected["id"],
-            "enabled": expected["enabled"],
-            "alarming": expected["alarming"],
-            "probeFailed": expected["probeFailed"],
         }
 
     async def test_get_devices_channel_alarms_use_device_display_units(

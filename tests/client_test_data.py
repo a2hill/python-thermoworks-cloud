@@ -285,3 +285,13 @@ GET_DEVICES_API_NO_PROBE_RESPONSE["devices"][0]["channels"][0].update({
 })
 
 ERROR_RESPONSE = {"error": {"code": "invalid_api_key", "message": "Invalid API key"}}
+
+# LOW is observed in the RFX/Billows blowing capture linked above.
+GET_DEVICES_API_LOW_CHANNEL_RESPONSE = deepcopy(GET_DEVICES_API_RESPONSE)
+GET_DEVICES_API_LOW_CHANNEL_RESPONSE["devices"][0]["channels"][0]["status"] = "LOW"
+# Synthetic forward-compatibility case; not a claimed vendor status.
+GET_DEVICES_API_UNKNOWN_CHANNEL_STATUS_RESPONSE = deepcopy(GET_DEVICES_API_RESPONSE)
+GET_DEVICES_API_UNKNOWN_CHANNEL_STATUS_RESPONSE["devices"][0]["channels"][0].update({
+    "status": "future-vendor-status",
+    "futureField": "unmodeled-channel-data",
+})

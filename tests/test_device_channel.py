@@ -7,6 +7,9 @@ import pytest
 
 from tests.client_test_object import ClientTestObject
 from tests.client_test_data import (
+    GET_DEVICES_API_RESPONSE,
+    GET_DEVICES_API_LOW_CHANNEL_RESPONSE,
+    GET_DEVICES_API_UNKNOWN_CHANNEL_STATUS_RESPONSE,
     GET_DEVICES_API_DISABLED_CHANNEL_RESPONSE,
     GET_DEVICES_API_FAILED_PROBE_RESPONSE,
     GET_DEVICES_API_ALARMING_CHANNEL_RESPONSE,
@@ -24,6 +27,7 @@ from tests.test_data import (
     TEST_ID_TOKEN,
 )
 from thermoworks_cloud import ThermoworksClient, ThermoworksCloud
+from thermoworks_cloud.models import ChannelStatus
 from thermoworks_cloud.models.device import DevicesResponse
 from thermoworks_cloud.auth import Auth
 
@@ -186,12 +190,12 @@ async def test_missing_display_units_leave_alarm_units_unknown(
         pytest.param(GET_DEVICES_API_ALARMING_CHANNEL_RESPONSE, id="alarming"),
     ],
 )
-async def test_channel_flags_are_exposed_without_removing_additional_properties(
+async def test_channel_flags_are_mapped_to_model_fields(
     client_session: ClientSession,
     client_test_object: ClientTestObject,
     response: DevicesResponse,
 ) -> None:
-    """Expose both true and false flags while retaining the previous dictionary interface."""
+    """Map true and false flags into fields rather than additional properties."""
 
     # Setup
     client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(response)
@@ -209,10 +213,7 @@ async def test_channel_flags_are_exposed_without_removing_additional_properties(
     assert channel.enabled == expected["enabled"]
     assert channel.probe_failed == expected["probeFailed"]
     assert channel.alarming == expected["alarming"]
-    assert channel.additional_properties is not None
-    assert channel.additional_properties["enabled"] == expected["enabled"]
-    assert channel.additional_properties["probeFailed"] == expected["probeFailed"]
-    assert channel.additional_properties["alarming"] == expected["alarming"]
+    assert channel.additional_properties == {"id": expected["id"]}
 
 
 async def test_missing_channel_flags_remain_unknown(
@@ -261,6 +262,7 @@ async def test_no_probe_preserves_status_and_measurement_timestamp(
     assert device.channels is not None
     channel = device.channels[0]
     assert channel.status == expected["status"]
+    assert channel.status == ChannelStatus.NO_PROBE
     assert channel.value == expected["value"]
     assert channel.enabled == expected["enabled"]
     assert channel.probe_failed == expected["probeFailed"]
@@ -269,3 +271,62 @@ async def test_no_probe_preserves_status_and_measurement_timestamp(
     assert device.last_seen is not None
     assert iso_instant(device.last_seen) == expected_device["lastSeen"]
     assert channel.last_telemetry_saved < device.last_seen
+
+
+@pytest.mark.parametrize(
+    ("response", "status"),
+    [
+        pytest.param(GET_DEVICES_API_RESPONSE, ChannelStatus.NORMAL, id="normal"),
+        pytest.param(GET_DEVICES_API_LOW_CHANNEL_RESPONSE, ChannelStatus.LOW, id="low"),
+        pytest.param(GET_DEVICES_API_NO_PROBE_RESPONSE, ChannelStatus.NO_PROBE, id="no-probe"),
+    ],
+)
+async def test_channel_status_supports_named_comparisons(
+    client_session: ClientSession, client_test_object: ClientTestObject,
+    response: DevicesResponse, status: ChannelStatus,
+) -> None:
+    """Expose comparison constants without changing the returned status type."""
+
+    # Setup
+    client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(response)
+    client = ThermoworksClient(
+        client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+    )
+    expected = response["devices"][0]["channels"][0]
+
+    # Act
+    device = (await client.get_devices())[0]
+
+    # Assert
+    assert device.channels is not None
+    channel = device.channels[0]
+    assert channel.status == expected["status"]
+    assert channel.status == status
+    assert not isinstance(channel.status, ChannelStatus)
+
+
+async def test_unknown_channel_status_and_additional_fields_are_preserved(
+    client_session: ClientSession, client_test_object: ClientTestObject
+) -> None:
+    """Future status strings remain readable, and genuinely unmodeled fields remain additional."""
+
+    # Setup
+    client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(
+        GET_DEVICES_API_UNKNOWN_CHANNEL_STATUS_RESPONSE
+    )
+    client = ThermoworksClient(
+        client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+    )
+    expected = GET_DEVICES_API_UNKNOWN_CHANNEL_STATUS_RESPONSE["devices"][0]["channels"][0]
+
+    # Act
+    device = (await client.get_devices())[0]
+
+    # Assert
+    assert device.channels is not None
+    channel = device.channels[0]
+    assert channel.status == expected["status"]
+    assert channel.additional_properties == {
+        "id": expected["id"],
+        "futureField": expected["futureField"],
+    }
