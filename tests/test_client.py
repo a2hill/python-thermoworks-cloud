@@ -14,6 +14,9 @@ from tests.client_test_data import (
     ERROR_RESPONSE,
     GET_DEVICES_API_NULLS_RESPONSE,
     GET_DEVICES_API_RESPONSE,
+    GET_DEVICES_API_CELSIUS_DISPLAY_RESPONSE,
+    GET_DEVICES_API_NULL_DISPLAY_UNITS_RESPONSE,
+    GET_DEVICES_API_MISSING_DISPLAY_UNITS_RESPONSE,
     GET_DEVICES_API_RFX_GATEWAY_RESPONSE,
     GET_DEVICES_API_RFX_MEAT_RESPONSE,
     GET_DEVICES_API_BILLOWS_PAUSED_RESPONSE,
@@ -179,10 +182,10 @@ class TestClient:
             "probeFailed": expected["probeFailed"],
         }
 
-    async def test_get_devices_channel_alarms_use_channel_units(
+    async def test_get_devices_channel_alarms_use_device_display_units(
         self, client_session: ClientSession, client_test_object: ClientTestObject
     ) -> None:
-        """Test that alarms, which have no units in the API, get the units of their channel."""
+        """Test that temperature alarm thresholds use the parent device display units."""
 
         # Setup
         client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(
@@ -203,12 +206,12 @@ class TestClient:
         assert channel.alarm_high.enabled == expected["alarmHigh"]["enabled"]
         assert channel.alarm_high.alarming == expected["alarmHigh"]["alarming"]
         assert channel.alarm_high.value == expected["alarmHigh"]["value"]
-        assert channel.alarm_high.units == expected["units"]
+        assert channel.alarm_high.units == GET_DEVICES_API_RESPONSE["devices"][0]["displayUnits"]
         assert channel.alarm_low is not None
         assert channel.alarm_low.enabled == expected["alarmLow"]["enabled"]
         assert channel.alarm_low.alarming == expected["alarmLow"]["alarming"]
         assert channel.alarm_low.value == expected["alarmLow"]["value"]
-        assert channel.alarm_low.units == expected["units"]
+        assert channel.alarm_low.units == GET_DEVICES_API_RESPONSE["devices"][0]["displayUnits"]
 
     async def test_get_devices_channel_min_max_use_channel_units(
         self, client_session: ClientSession, client_test_object: ClientTestObject
@@ -627,3 +630,94 @@ class TestClient:
         # Act
         with pytest.raises(RuntimeError):
             await client.get_devices_raw()
+
+
+class TestTemperatureAlarmUnits:
+    """Regression coverage for temperature thresholds reported in device display units."""
+
+    async def test_celsius_alarms_with_fahrenheit_readings(
+        self, client_session: ClientSession, client_test_object: ClientTestObject
+    ) -> None:
+        """Keep readings and extrema in Fahrenheit while labelling thresholds in Celsius."""
+
+        # Setup
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(
+            GET_DEVICES_API_CELSIUS_DISPLAY_RESPONSE
+        )
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
+        expected_device = GET_DEVICES_API_CELSIUS_DISPLAY_RESPONSE["devices"][0]
+        expected = expected_device["channels"][0]
+        expected_high = expected["alarmHigh"]
+        expected_low = expected["alarmLow"]
+        assert expected_high is not None
+        assert expected_low is not None
+
+        # Act
+        device = (await client.get_devices())[0]
+
+        # Assert
+        assert device.channels is not None
+        channel = device.channels[0]
+        assert channel.value == expected["value"]
+        assert channel.units == expected["units"]
+        assert channel.alarm_high is not None
+        assert channel.alarm_high.value == expected_high["value"]
+        assert channel.alarm_high.enabled == expected_high["enabled"]
+        assert channel.alarm_high.alarming == expected_high["alarming"]
+        assert channel.alarm_high.units == expected_device["displayUnits"]
+        assert channel.alarm_low is not None
+        assert channel.alarm_low.value == expected_low["value"]
+        assert channel.alarm_low.enabled == expected_low["enabled"]
+        assert channel.alarm_low.alarming == expected_low["alarming"]
+        assert channel.alarm_low.units == expected_device["displayUnits"]
+        assert channel.minimum is not None
+        assert channel.minimum.reading is not None
+        assert channel.minimum.reading.value == expected["minimum"]
+        assert channel.minimum.reading.units == expected["units"]
+        assert channel.maximum is not None
+        assert channel.maximum.reading is not None
+        assert channel.maximum.reading.value == expected["maximum"]
+        assert channel.maximum.reading.units == expected["units"]
+
+    @pytest.mark.parametrize(
+        "response",
+        [
+            pytest.param(GET_DEVICES_API_NULL_DISPLAY_UNITS_RESPONSE, id="null"),
+            pytest.param(GET_DEVICES_API_MISSING_DISPLAY_UNITS_RESPONSE, id="missing"),
+        ],
+    )
+    async def test_missing_display_units_leave_alarm_units_unknown(
+        self,
+        client_session: ClientSession,
+        client_test_object: ClientTestObject,
+        response: DevicesResponse,
+    ) -> None:
+        """Do not guess temperature alarm units from the channel's measurement units."""
+
+        # Setup
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(response)
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
+        expected = response["devices"][0]["channels"][0]
+        expected_high = expected["alarmHigh"]
+        expected_low = expected["alarmLow"]
+        assert expected_high is not None
+        assert expected_low is not None
+
+        # Act
+        device = (await client.get_devices())[0]
+
+        # Assert
+        assert device.channels is not None
+        channel = device.channels[0]
+        assert channel.value == expected["value"]
+        assert channel.units == expected["units"]
+        assert channel.alarm_high is not None
+        assert channel.alarm_high.value == expected_high["value"]
+        assert channel.alarm_high.units is None
+        assert channel.alarm_low is not None
+        assert channel.alarm_low.value == expected_low["value"]
+        assert channel.alarm_low.units is None

@@ -78,6 +78,28 @@ GET_DEVICES_API_RESPONSE = json.loads(
 }"""
 )
 
+
+def _response_with_units(*, display_units: Optional[str], channel_units: str) -> DevicesResponse:
+    """Vary unit metadata independently; keep numeric readings and thresholds unchanged."""
+    response = deepcopy(GET_DEVICES_API_RESPONSE)
+    device = response["devices"][0]
+    device["displayUnits"] = display_units
+    device["channels"][0]["units"] = channel_units
+    return response
+
+
+# Representative variants, not full captures: mixed temperature units were reported at
+# https://github.com/a2hill/ha-thermoworks-cloud/issues/46#issuecomment-6633350372
+# Missing metadata exercises the mapping boundary independently.
+GET_DEVICES_API_CELSIUS_DISPLAY_RESPONSE = _response_with_units(
+    display_units="C", channel_units="F"
+)
+GET_DEVICES_API_NULL_DISPLAY_UNITS_RESPONSE = _response_with_units(
+    display_units=None, channel_units="F"
+)
+GET_DEVICES_API_MISSING_DISPLAY_UNITS_RESPONSE = deepcopy(GET_DEVICES_API_RESPONSE)
+del GET_DEVICES_API_MISSING_DISPLAY_UNITS_RESPONSE["devices"][0]["displayUnits"]
+
 # Hand-built rather than captured: the documented nullable fields are set to null or left out,
 # to show that a device or channel without them still parses.
 GET_DEVICES_API_NULLS_RESPONSE = json.loads(

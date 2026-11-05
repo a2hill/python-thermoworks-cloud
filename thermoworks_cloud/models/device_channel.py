@@ -196,7 +196,8 @@ def _document_to_device_channel(document: dict) -> DeviceChannel:
 def _json_to_alarm(data: Optional[_AlarmResponse], units: Optional[str]) -> Optional[Alarm]:
     """Convert an alarm from the ThermoWorks API into an Alarm object.
 
-    Unlike Firebase, API alarms have no units of their own. They use the units of their channel.
+    Unlike Firebase, API alarms have no units of their own. The channel converter supplies
+    the appropriate units; temperature thresholds use the parent device's display units.
     """
     if not data:
         return None
@@ -222,12 +223,18 @@ def _json_to_min_max_reading(
     return MinMaxReading(reading=Reading(value=value, units=units))
 
 
-def _json_to_device_channel(data: DeviceChannelResponse) -> DeviceChannel:
+def _json_to_device_channel(
+    data: DeviceChannelResponse, device_display_units: Optional[str]
+) -> DeviceChannel:
     """Convert a channel from the ThermoWorks API into a DeviceChannel object.
 
     Firebase only has `number`. `id` has been observed to be the same number as a string, but it
     is kept in `additional_properties` along with the other API fields that have no Firebase
     equivalent: `enabled`, `alarming` and `probeFailed`.
+
+    Temperature readings and extrema use channel units, but alarm thresholds use the device's
+    display units. Leave temperature alarm units unknown when display units are unavailable.
+    Keep the existing channel-unit behavior for non-temperature readings.
     """
     known_fields = {
         "number",
@@ -248,6 +255,7 @@ def _json_to_device_channel(data: DeviceChannelResponse) -> DeviceChannel:
     }
     number = data.get("number")
     units = data.get("units")
+    alarm_units = device_display_units if units in ("F", "C") else units
 
     return DeviceChannel(
         number=str(number) if number is not None else None,
@@ -256,8 +264,8 @@ def _json_to_device_channel(data: DeviceChannelResponse) -> DeviceChannel:
         value=data.get("value"),
         units=units,
         status=data.get("status"),
-        alarm_high=_json_to_alarm(data.get("alarmHigh"), units),
-        alarm_low=_json_to_alarm(data.get("alarmLow"), units),
+        alarm_high=_json_to_alarm(data.get("alarmHigh"), alarm_units),
+        alarm_low=_json_to_alarm(data.get("alarmLow"), alarm_units),
         minimum=_json_to_min_max_reading(data.get("minimum"), units),
         maximum=_json_to_min_max_reading(data.get("maximum"), units),
         last_telemetry_saved=parse_optional_datetime(data.get("lastTelemetrySaved")),
