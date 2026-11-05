@@ -286,6 +286,10 @@ GET_DEVICES_API_NO_PROBE_RESPONSE["devices"][0]["channels"][0].update({
 
 ERROR_RESPONSE = {"error": {"code": "invalid_api_key", "message": "Invalid API key"}}
 
+# Synthetic identity case: the schema does not require id to equal the channel number.
+GET_DEVICES_API_DISTINCT_CHANNEL_ID_RESPONSE = deepcopy(GET_DEVICES_API_RESPONSE)
+GET_DEVICES_API_DISTINCT_CHANNEL_ID_RESPONSE["devices"][0]["channels"][0]["id"] = "test-channel-id"
+
 # LOW is observed in the RFX/Billows blowing capture linked above.
 GET_DEVICES_API_LOW_CHANNEL_RESPONSE = deepcopy(GET_DEVICES_API_RESPONSE)
 GET_DEVICES_API_LOW_CHANNEL_RESPONSE["devices"][0]["channels"][0]["status"] = "LOW"

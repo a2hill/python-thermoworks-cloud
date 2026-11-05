@@ -154,6 +154,7 @@ class DeviceChannel:  # pylint: disable=too-many-instance-attributes
     enabled: Optional[bool] = None
     probe_failed: Optional[bool] = None
     alarming: Optional[bool] = None
+    id: Optional[str] = None
 
     # Dictionary to store any additional properties not explicitly defined
     additional_properties: Optional[Dict] = None
@@ -245,15 +246,16 @@ def _json_to_device_channel(
 ) -> DeviceChannel:
     """Convert a channel from the ThermoWorks API into a DeviceChannel object.
 
-    Firebase only has `number`. `id` has been observed to be the same number as a string, but it
-    is kept in `additional_properties`. Channel flags are mapped to their named model fields
-    rather than retained as additional properties.
+    The API's string `id` and nullable `number` are independent fields. Keep `id` verbatim
+    and retain the existing string representation of `number`, without deriving either
+    from the other. Channel flags are mapped to their named model fields.
 
     Temperature readings and extrema use channel units, but alarm thresholds use the device's
     display units. Leave temperature alarm units unknown when display units are unavailable.
     Keep the existing channel-unit behavior for non-temperature readings.
     """
     known_fields = {
+        "id",
         "number",
         "label",
         "type",
@@ -278,6 +280,7 @@ def _json_to_device_channel(
     alarm_units = device_display_units if units in ("F", "C") else units
 
     return DeviceChannel(
+        id=data.get("id"),
         number=str(number) if number is not None else None,
         label=data.get("label"),
         type=data.get("type"),

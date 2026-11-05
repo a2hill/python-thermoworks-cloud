@@ -162,6 +162,7 @@ class TestClient:
         assert devices[0].channels is not None
         assert len(devices[0].channels) == 1
         channel = devices[0].channels[0]
+        assert channel.id == expected["id"]
         assert channel.number == str(expected["number"])
         assert channel.label == expected["label"]
         assert channel.type == expected["type"]
@@ -172,9 +173,7 @@ class TestClient:
         assert iso_instant(channel.last_telemetry_saved) == expected["lastTelemetrySaved"]
         assert channel.last_seen is not None
         assert iso_instant(channel.last_seen) == expected["lastSeen"]
-        assert channel.additional_properties == {
-            "id": expected["id"],
-        }
+        assert channel.additional_properties is None
 
     async def test_get_devices_channel_alarms_use_device_display_units(
         self, client_session: ClientSession, client_test_object: ClientTestObject
@@ -436,6 +435,7 @@ class TestClient:
         assert device.channels is not None
         channel = device.channels[0]
         assert channel.number is None
+        assert channel.id == GET_DEVICES_API_NULLS_RESPONSE["devices"][0]["channels"][0]["id"]
         assert channel.alarm_high is None
         assert channel.alarm_low is None
         assert channel.minimum is None

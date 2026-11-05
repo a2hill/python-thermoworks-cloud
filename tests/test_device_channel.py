@@ -8,6 +8,7 @@ import pytest
 from tests.client_test_object import ClientTestObject
 from tests.client_test_data import (
     GET_DEVICES_API_RESPONSE,
+    GET_DEVICES_API_DISTINCT_CHANNEL_ID_RESPONSE,
     GET_DEVICES_API_LOW_CHANNEL_RESPONSE,
     GET_DEVICES_API_UNKNOWN_CHANNEL_STATUS_RESPONSE,
     GET_DEVICES_API_DISABLED_CHANNEL_RESPONSE,
@@ -213,7 +214,8 @@ async def test_channel_flags_are_mapped_to_model_fields(
     assert channel.enabled == expected["enabled"]
     assert channel.probe_failed == expected["probeFailed"]
     assert channel.alarming == expected["alarming"]
-    assert channel.additional_properties == {"id": expected["id"]}
+    assert channel.id == expected["id"]
+    assert channel.additional_properties is None
 
 
 async def test_missing_channel_flags_remain_unknown(
@@ -326,7 +328,33 @@ async def test_unknown_channel_status_and_additional_fields_are_preserved(
     assert device.channels is not None
     channel = device.channels[0]
     assert channel.status == expected["status"]
+    assert channel.id == expected["id"]
     assert channel.additional_properties == {
-        "id": expected["id"],
         "futureField": expected["futureField"],
     }
+
+
+async def test_channel_id_and_number_are_independent(
+    client_session: ClientSession, client_test_object: ClientTestObject
+) -> None:
+    """Map an opaque channel id separately from the existing channel-number representation."""
+
+    # Setup
+    client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(
+        GET_DEVICES_API_DISTINCT_CHANNEL_ID_RESPONSE
+    )
+    client = ThermoworksClient(
+        client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+    )
+    expected = GET_DEVICES_API_DISTINCT_CHANNEL_ID_RESPONSE["devices"][0]["channels"][0]
+
+    # Act
+    device = (await client.get_devices())[0]
+
+    # Assert
+    assert device.channels is not None
+    channel = device.channels[0]
+    assert channel.id == expected["id"]
+    assert channel.number == str(expected["number"])
+    assert channel.id != channel.number
+    assert channel.additional_properties is None
