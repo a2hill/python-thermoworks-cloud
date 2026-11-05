@@ -151,12 +151,9 @@ class DeviceChannel:  # pylint: disable=too-many-instance-attributes
         }
     )
 
-    enabled: Optional[bool] = field(
-        default=None, metadata={"firestore_type": "booleanValue"})
-    probe_failed: Optional[bool] = field(
-        default=None, metadata={"firestore_type": "booleanValue"})
-    alarming: Optional[bool] = field(
-        default=None, metadata={"firestore_type": "booleanValue"})
+    enabled: Optional[bool] = None
+    probe_failed: Optional[bool] = None
+    alarming: Optional[bool] = None
 
     # Dictionary to store any additional properties not explicitly defined
     additional_properties: Optional[Dict] = None
