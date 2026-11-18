@@ -12,7 +12,7 @@ Pull data from your ThermoWorks Cloud connected thermometers
 
 This is an unofficial library written using the observed behavior of the ThermoWorks Cloud web client (https://cloud.thermoworks.com/home)
 
-The primary purpose of this library is to make ThermoWorks data available for usage in the acompanying [Home Assistant ThermoWorks Cloud Ingegration](https://github.com/a2hill/ha-thermoworks-cloud) 
+The primary purpose of this library is to make ThermoWorks data available for usage in the acompanying [Home Assistant ThermoWorks Cloud Ingegration](https://github.com/a2hill/ha-thermoworks-cloud)
 
 ### Supported Devices
 This library has been tested with the following devices:
@@ -25,15 +25,32 @@ More more information on supported devices see the discussion thread: [ThermoWor
 
 
 ## Installation
+
+To use the library in another project:
+
 ```bash
 pip install thermoworks-cloud
+```
+
+To work on this repo or run the examples, install [uv](https://docs.astral.sh/uv/getting-started/installation/) and sync dependencies:
+
+```bash
+uv sync
+```
+
+For development (tests, linting, docs):
+
+```bash
+uv sync --extra dev
 ```
 
 ## Usage
 See [examples/](examples/)
 
+Copy `.secrets.example` to `.secrets` and set `THERMOWORKS_EMAIL` and `THERMOWORKS_PASSWORD` (lines starting with `#` are ignored):
+
 ```bash
-env $(cat .secrets) python3 examples/get_devices_for_user.py 
+env $(grep -v '^#' .secrets | xargs) uv run python examples/get_devices_for_user.py
 ```
 
 ## Docs
