@@ -63,6 +63,21 @@ class RateLimit:
     per_day: Optional[int] = None
 
 
+@dataclass(frozen=True)
+class RateLimitStatus:
+    """RateLimitStatus is the per-minute budget reported by the `X-RateLimit-*` response headers.
+
+    The service reports nothing about the daily budget, so this only covers the per-minute one.
+    """
+
+    limit: Optional[int] = None
+    """The number of requests allowed per minute, from `X-RateLimit-Limit`."""
+    remaining: Optional[int] = None
+    """The number of requests left in the current minute, from `X-RateLimit-Remaining`."""
+    reset_seconds: Optional[int] = None
+    """Seconds until the per-minute budget refills, from `X-RateLimit-Reset`."""
+
+
 @dataclass
 class Account:
     """Account contains information about the account an API key belongs to."""

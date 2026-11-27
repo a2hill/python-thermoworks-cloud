@@ -29,7 +29,7 @@ from tests.client_test_data import (
     TEST_THERMOWORKS_API_KEY,
 )
 from thermoworks_cloud import ApiAuthenticationError, RateLimitError, ThermoworksClient
-from thermoworks_cloud.models import FanState
+from thermoworks_cloud.models import FanState, RateLimitStatus
 from thermoworks_cloud.models.device import DevicesResponse
 
 
@@ -624,3 +624,130 @@ class TestClient:
         # Act
         with pytest.raises(RuntimeError):
             await client.get_devices_raw()
+
+
+class TestClientRequestBudget:
+    """Test class for what ThermoworksClient reports about the request budget."""
+
+    async def test_get_me_keeps_account(
+        self, client_session: ClientSession, client_test_object: ClientTestObject
+    ) -> None:
+        """Test that the account from get_me stays available on the client."""
+
+        # Setup
+        client_test_object.expect_get_me(TEST_THERMOWORKS_API_KEY).respond_with_json(
+            GET_ME_RESPONSE
+        )
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
+        assert client.account is None
+
+        # Act
+        account = await client.get_me()
+
+        # Assert
+        assert client.account == account
+
+    async def test_rate_limit_follows_latest_response(
+        self, client_session: ClientSession, client_test_object: ClientTestObject
+    ) -> None:
+        """Test that the per-minute budget comes from the latest response, including a 304."""
+
+        # Setup
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(
+            GET_DEVICES_API_RESPONSE,
+            headers={
+                "ETag": TEST_ETAG,
+                "X-RateLimit-Limit": "4",
+                "X-RateLimit-Remaining": "2",
+                "X-RateLimit-Reset": "37",
+            },
+        )
+        client_test_object.expect_get_devices(
+            TEST_THERMOWORKS_API_KEY, etag=TEST_ETAG
+        ).respond_with_data(
+            status=304,
+            headers={
+                "X-RateLimit-Limit": "4",
+                "X-RateLimit-Remaining": "1",
+                "X-RateLimit-Reset": "36",
+            },
+        )
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
+        assert client.rate_limit is None
+        await client.get_devices()
+
+        # Act
+        await client.get_devices()
+
+        # Assert
+        assert client.rate_limit == RateLimitStatus(limit=4, remaining=1, reset_seconds=36)
+
+    async def test_rate_limit_kept_when_response_has_none(
+        self, client_session: ClientSession, client_test_object: ClientTestObject
+    ) -> None:
+        """Test that a response without rate limit headers keeps the last known budget."""
+
+        # Setup
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(
+            GET_DEVICES_API_RESPONSE,
+            headers={
+                "ETag": TEST_ETAG,
+                "X-RateLimit-Limit": "4",
+                "X-RateLimit-Remaining": "3",
+                "X-RateLimit-Reset": "59",
+            },
+        )
+        client_test_object.expect_get_devices(
+            TEST_THERMOWORKS_API_KEY, etag=TEST_ETAG
+        ).respond_with_data(status=500, response_data=b"Error")
+        client = ThermoworksClient(
+            client_session, TEST_THERMOWORKS_API_KEY, client_test_object.base_url
+        )
+        await client.get_devices()
+
+        # Act
+        with pytest.raises(RuntimeError):
+            await client.get_devices()
+
+        # Assert
+        assert client.rate_limit == RateLimitStatus(limit=4, remaining=3, reset_seconds=59)
+
+    async def test_on_response_reports_every_response(
+        self, client_session: ClientSession, client_test_object: ClientTestObject
+    ) -> None:
+        """Test that on_response is called with the status of every response, failed or not."""
+
+        # Setup
+        client_test_object.expect_get_me(TEST_THERMOWORKS_API_KEY).respond_with_json(
+            GET_ME_RESPONSE
+        )
+        client_test_object.expect_get_devices(TEST_THERMOWORKS_API_KEY).respond_with_json(
+            GET_DEVICES_API_RESPONSE, headers={"ETag": TEST_ETAG}
+        )
+        client_test_object.expect_get_devices(
+            TEST_THERMOWORKS_API_KEY, etag=TEST_ETAG
+        ).respond_with_data(status=304)
+        client_test_object.expect_get_devices(
+            TEST_THERMOWORKS_API_KEY, etag=TEST_ETAG
+        ).respond_with_data(status=429, headers={"Retry-After": "12"})
+        statuses: list[int] = []
+        client = ThermoworksClient(
+            client_session,
+            TEST_THERMOWORKS_API_KEY,
+            client_test_object.base_url,
+            on_response=statuses.append,
+        )
+
+        # Act
+        await client.get_me()
+        await client.get_devices()
+        await client.get_devices()
+        with pytest.raises(RateLimitError):
+            await client.get_devices()
+
+        # Assert
+        assert statuses == [200, 200, 304, 429]
